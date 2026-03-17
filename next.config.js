@@ -9,7 +9,7 @@ const config = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'd123abc.cloudfront.net', // TODO: Replace with your actual CloudFront domain from Terraform
+        hostname: 'd3lbexrq4gc5jo.cloudfront.net', // TODO: Replace with your actual CloudFront domain from Terraform
         port: '',
         pathname: '/**', 
       },

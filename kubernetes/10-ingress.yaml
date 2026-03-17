@@ -11,10 +11,10 @@ spec:
   ingressClassName: nginx 
   tls:
   - hosts:
-    - easyshop.letsdeployit.com
+    - 13.53.128.243.nip.io
     secretName: easyshop-tls-secret  # Cert-Manager will create and populate this secret automatically
   rules:
-  - host: easyshop.letsdeployit.com
+  - host: 13.53.128.243.nip.io
     http:
       paths:
       - path: /

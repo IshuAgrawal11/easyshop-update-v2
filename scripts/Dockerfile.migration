@@ -1,0 +1,54 @@
+# ==========================================
+# Stage 1: Builder
+# ==========================================
+FROM node:18-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install native build dependencies (only lives in this build stage)
+RUN apk add --no-cache python3 make g++
+
+# Copy dependency definitions
+COPY package*.json ./
+
+# Clean install of ALL dependencies (including devDependencies for tsc)
+RUN npm ci
+
+# Copy TypeScript configuration and source code
+COPY tsconfig.json ./
+COPY scripts ./scripts
+
+# Compile TypeScript to JavaScript 
+# (This assumes tsc compiles files in-place or into a predictable directory)
+RUN npx tsc --project scripts/tsconfig.json
+
+# ==========================================
+# Stage 2: Production
+# ==========================================
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Enforce production environment
+ENV NODE_ENV=production
+
+# Copy dependency definitions
+COPY package*.json ./
+
+# Install ONLY production dependencies and clean cache to save space
+RUN npm ci --omit=dev && npm cache clean --force
+
+# Copy the compiled JS files from the builder stage
+# Note: If your tsconfig.json specifies an "outDir" (like dist/), adjust the paths below
+COPY --from=builder /app/dist/scripts ./scripts
+
+# Copy the data folder and assign ownership to the non-root 'node' user
+COPY --chown=node:node .db ./.db
+
+# Switch to the default non-root 'node' user provided by the base image
+USER node
+
+# Run the compiled JavaScript file instead of ts-node
+CMD ["node", "scripts/migrate-data.js"]

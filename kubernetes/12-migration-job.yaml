@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migration
+  namespace: easyshop
+spec:
+  template:
+    spec:
+      containers:
+      - name: migration
+        image: trainwithshubham/easyshop-migration:1
+        imagePullPolicy: Always
+        env:
+        - name: MONGODB_URI
+          value: "mongodb://mongodb-service:27017/easyshop"
+        - name: CDN_URL
+          valueFrom:
+            configMapKeyRef:
+              name: easyshop-config
+              key: CDN_URL
+      restartPolicy: OnFailure

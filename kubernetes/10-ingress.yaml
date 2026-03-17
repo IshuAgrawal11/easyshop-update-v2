@@ -5,14 +5,10 @@ metadata:
   namespace: easyshop
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
     cert-manager.io/cluster-issuer: "letsencrypt-prod" 
 spec:
   ingressClassName: nginx 
-  tls:
-  - hosts:
-    - 13.53.128.243.nip.io
-    secretName: easyshop-tls-secret  # Cert-Manager will create and populate this secret automatically
   rules:
   - host: 13.53.128.243.nip.io
     http:

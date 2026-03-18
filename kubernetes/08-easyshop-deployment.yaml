@@ -49,19 +49,19 @@ spec:
               cpu: "500m"
           startupProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: 3000
             failureThreshold: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: 3000
             initialDelaySeconds: 20
             periodSeconds: 15
           livenessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: 3000
             initialDelaySeconds: 25
             periodSeconds: 20

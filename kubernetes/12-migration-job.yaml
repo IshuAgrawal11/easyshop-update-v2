@@ -8,7 +8,7 @@ spec:
     spec:
       containers:
       - name: migration
-        image: ishu11/e-shop-migration:8
+        image: ishu11/e-shop-migration:latest
         imagePullPolicy: Always
         env:
         - name: MONGODB_URI

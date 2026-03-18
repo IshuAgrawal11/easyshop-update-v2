@@ -9,10 +9,6 @@ metadata:
     cert-manager.io/cluster-issuer: "letsencrypt-prod" 
 spec:
   ingressClassName: nginx
-  tls:
-  - hosts:
-    - 13.53.128.243.nip.io
-    secretName: easyshop-tls-secret  # Cert-Manager will manage this
   rules:
   - host: 13.53.128.243.nip.io
     http:

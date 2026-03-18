@@ -7,5 +7,5 @@ data:
   CDN_URL: "https://d2oetz2exrp1li.cloudfront.net"
   MONGODB_URI: "mongodb://mongodb-service:27017/easyshop"
   NODE_ENV: "production"
-  NEXT_PUBLIC_API_URL: "https://13.63.158.12.nip.io/api"
-  NEXTAUTH_URL: "https://13.63.158.12.nip.io/"
+  NEXT_PUBLIC_API_URL: "https://13.49.27.153.nip.io/api"
+  NEXTAUTH_URL: "https://13.49.27.153.nip.io/"

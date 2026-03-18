@@ -5,6 +5,7 @@ pipeline {
     
     environment {
         // Update the main app image name to match the deployment file
+        SONAR_HOME = tool "Sonar"
         DOCKER_IMAGE_NAME = 'ishu11/e-shop-app'
         DOCKER_MIGRATION_IMAGE_NAME = 'ishu/e-shop-migration'
         DOCKER_IMAGE_TAG = "${BUILD_NUMBER}"
@@ -25,6 +26,49 @@ pipeline {
             steps {
                 script {
                     clone("https://github.com/IshuAgrawal11/production-ready-e-commerce-application.git","main")
+                }
+            }
+        }
+        
+        stage('Cleanup Docker Environment') {
+            steps {
+                script {
+                    sh "docker image prune -f"
+                    sh "docker image prune -a -f --filter 'until=24h'"
+                    sh "docker rmi -f ${env.DOCKER_IMAGE_NAME}:${env.DOCKER_IMAGE_TAG} || true"
+                    sh "docker rmi -f ${env.DOCKER_MIGRATION_IMAGE_NAME}:${env.DOCKER_IMAGE_TAG} || true"
+                }
+            }
+        }
+        
+         stage("Trivy: Filesystem scan"){
+            steps{
+                script{
+                    trivy_scan()
+                }
+            }
+        }
+
+        stage("OWASP: Dependency check"){
+            steps{
+                script{
+                    owasp_dependency()
+                }
+            }
+        }
+        
+        stage("SonarQube: Code Analysis"){
+            steps{
+                script{
+                    sonarqube_analysis("Sonar","wanderlust","wanderlust")
+                }
+            }
+        }
+        
+        stage("SonarQube: Code Quality Gates"){
+            steps{
+                script{
+                    sonarqube_code_quality()
                 }
             }
         }
@@ -67,17 +111,6 @@ pipeline {
             }
         }
         
-        stage('Security Scan with Trivy') {
-            steps {
-                script {
-                    // Create directory for results
-                  
-                    trivy_scan()
-                    
-                }
-            }
-        }
-        
         stage('Push Docker Images') {
             parallel {
                 stage('Push Main App Image') {
@@ -106,7 +139,6 @@ pipeline {
             }
         }
         
-        // Add this new stage
         stage('Update Kubernetes Manifests') {
             steps {
                 script {
@@ -119,6 +151,20 @@ pipeline {
                     )
                 }
             }
+        }
+    } 
+    post {
+        success {
+            emailext from: 'ishuagrawal1103@gmail.com',
+                     to: 'ishuagrawal1103@gmail.com',
+                     body: "Build success for easyshop CICD App - Job ${env.BUILD_NUMBER}",
+                     subject: 'Build success for Demo CICD App'
+        } 
+        failure {
+            emailext from: 'ishuagrawal1103@gmail.com',
+                     to: 'ishuagrawal1103@gmail.com',
+                     body: "Build Failed for easyshop CICD App - Check logs at ${env.BUILD_URL}",
+                     subject: 'Build Failed for Demo CICD App'
         }
     }
 }

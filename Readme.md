@@ -8,6 +8,20 @@
 
 EasyShop is a modern, full-stack e-commerce platform built with Next.js 14, TypeScript, and MongoDB. It features a beautiful UI with Tailwind CSS, secure authentication, real-time cart updates, and a seamless shopping experience.
 
+
+## Tech stack used in this project:
+- GitHub (Code)
+- Docker (Containerization)
+- Jenkins (CI)
+- OWASP (Dependency check)
+- SonarQube (Quality)
+- Trivy (Filesystem Scan)
+- ArgoCD (CD)
+- Redis (Caching)
+- AWS EKS (Kubernetes)
+- Helm (Monitoring using grafana and prometheus)
+
+  
 ## ✨ Features
 
 - 🎨 Modern and responsive UI with dark mode support
@@ -129,6 +143,41 @@ terraform apply
 ```
 > Confirm with `yes` when prompted.
 
+- Install **eksctl** (Master machine) (<a href="https://github.com/DevMadhup/DevOps-Tools-Installations/blob/main/eksctl%20/eksctl.sh">Setup eksctl</a>)
+  ```bash
+  curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+  sudo mv /tmp/eksctl /usr/local/bin
+  eksctl version
+  ```
+  
+  - <b>Create EKS Cluster (Master machine)</b>
+  ```bash
+  eksctl create cluster --name=wanderlust \
+                      --region=us-east-2 \
+                      --version=1.30 \
+                      --without-nodegroup
+  ```
+  - <b>Associate IAM OIDC Provider (Master machine)</b>
+  ```bash
+  eksctl utils associate-iam-oidc-provider \
+    --region us-east-2 \
+    --cluster wanderlust \
+    --approve
+  ```
+  - <b>Create Nodegroup (Master machine)</b>
+  ```bash
+  eksctl create nodegroup --cluster=wanderlust \
+                       --region=us-east-2 \
+                       --name=wanderlust \
+                       --node-type=t2.large \
+                       --nodes=2 \
+                       --nodes-min=2 \
+                       --nodes-max=2 \
+                       --node-volume-size=29 \
+                       --ssh-access \
+                       --ssh-public-key=eks-nodegroup-key 
+  ```
+
 7. **Access Your EC2 Instance;** <br/>
 After deployment, grab the public IP of your EC2 instance from the output or AWS Console, then connect using SSH:
 ```bash
@@ -144,7 +193,7 @@ aws configure
 ```
 
 ```bash
-aws eks --region eu-west-1 update-kubeconfig --name tws-eks-cluster
+aws eks --region eu-west-1 update-kubeconfig --name my-eks-cluster
 ```
 9. **Check your cluster:**
 ```bash
@@ -424,12 +473,11 @@ kubectl get svc nginx-ingress-ingress-nginx-controller -n ingress-nginx -o jsonp
 > >   name: easyshop-config
 > >   namespace: easyshop
 > > data:
+> >   CDN_URL: "https://d2oetz2exrp1li.cloudfront.net"
 > >   MONGODB_URI: "mongodb://mongodb-service:27017/easyshop"
 > >   NODE_ENV: "production"
-> >   NEXT_PUBLIC_API_URL: "https://easyshop.letsdeployit.com/api"
-> >   NEXTAUTH_URL: "https://easyshop.letsdeployit.com/"
-> >   NEXTAUTH_SECRET: "HmaFjYZ2jbUK7Ef+wZrBiJei4ZNGBAJ5IdiOGAyQegw="
-> >   JWT_SECRET: "e5e425764a34a2117ec2028bd53d6f1388e7b90aeae9fa7735f2469ea3a6cc8c"
+> >   NEXT_PUBLIC_API_URL: "https://13.49.27.153.nip.io/api"
+> >   NEXTAUTH_URL: "https://13.49.27.153.nip.io/" 
 > > ```
 
 > #### 2. **Update your manifests to enable HTTPS:**
@@ -446,12 +494,13 @@ kubectl get svc nginx-ingress-ingress-nginx-controller -n ingress-nginx -o jsonp
 > >     cert-manager.io/cluster-issuer: "letsencrypt-prod"
 > >     nginx.ingress.kubernetes.io/ssl-redirect: "true"
 > > spec:
+> >   ingressClassName: nginx
 > >   tls:
-> >   - hosts:
+> >   - hosts: 13.49.27.153.nip.io
 > >     - 
 > >     secretName: easyshop-tls
 > >   rules:
-> >   - host: easyshop.letsdeployit.com
+> >   - host: 13.49.27.153.nip.io
 > >     http:
 > >       paths:
 > >       - path: /
@@ -494,5 +543,111 @@ kubectl get svc nginx-ingress-ingress-nginx-controller -n ingress-nginx -o jsonp
 
 ## **Congratulations!** <br/>
 ![EasyShop Website Screenshot](./public/Deployed.png)
+
+#
+## How to monitor EKS cluster, kubernetes components and workloads using prometheus and grafana via HELM (On Master machine)
+- <p id="Monitor">Install Helm Chart</p>
+```bash
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+```
+```bash
+chmod 700 get_helm.sh
+```
+```bash
+./get_helm.sh
+```
+
+#
+-  Add Helm Stable Charts for Your Local Client
+```bash
+helm repo add stable https://charts.helm.sh/stable
+```
+
+#
+- Add Prometheus Helm Repository
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+```
+
+#
+- Create Prometheus Namespace
+```bash
+kubectl create namespace prometheus
+```
+```bash
+kubectl get ns
+```
+
+#
+- Install Prometheus using Helm
+```bash
+helm install stable prometheus-community/kube-prometheus-stack -n prometheus
+```
+
+#
+- Verify prometheus installation
+```bash
+kubectl get pods -n prometheus
+```
+
+#
+- Check the services file (svc) of the Prometheus
+```bash
+kubectl get svc -n prometheus
+```
+
+#
+- Expose Prometheus and Grafana to the external world through Node Port
+> [!Important]
+> change it from Cluster IP to NodePort after changing make sure you save the file and open the assigned nodeport to the service.
+
+```bash
+kubectl edit svc stable-kube-prometheus-sta-prometheus -n prometheus
+```
+![image](https://github.com/user-attachments/assets/90f5dc11-23de-457d-bbcb-944da350152e)
+![image](https://github.com/user-attachments/assets/ed94f40f-c1f9-4f50-a340-a68594856cc7)
+
+#
+- Verify service
+```bash
+kubectl get svc -n prometheus
+```
+
+#
+- Now,let’s change the SVC file of the Grafana and expose it to the outer world
+```bash
+kubectl edit svc stable-grafana -n prometheus
+```
+![image](https://github.com/user-attachments/assets/4a2afc1f-deba-48da-831e-49a63e1a8fb6)
+
+#
+- Check grafana service
+```bash
+kubectl get svc -n prometheus
+```
+
+#
+- Get a password for grafana
+```bash
+kubectl get secret --namespace prometheus stable-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+```
+> [!Note]
+> Username: admin
+
+#
+- Now, view the Dashboard in Grafana
+![image](https://github.com/user-attachments/assets/d2e7ff2f-059d-48c4-92bb-9711943819c4)
+![image](https://github.com/user-attachments/assets/3d6652d0-7795-4fe9-8919-f33eac88db73)
+![image](https://github.com/user-attachments/assets/13321ee5-5d7b-4976-b409-25d3b865a42a)
+![image](https://github.com/user-attachments/assets/75a22e4b-ae81-4cad-9c92-21dd90d126a8)
+
+#
+## Clean Up
+- <b id="Clean">Delete eks cluster</b>
+```bash
+eksctl delete cluster --name=wanderlust --region=us-west-1
+```
+
+#
 
 ### Your project is now deployed.

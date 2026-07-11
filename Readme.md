@@ -5,6 +5,7 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-8.1.1-green?style=flat-square&logo=mongodb)](https://www.mongodb.com/)
 [![Redux](https://img.shields.io/badge/Redux-2.2.1-purple?style=flat-square&logo=redux)](https://redux.js.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/IshuAgrawal11/production-ready-e-commerce-application)
 
 EasyShop is a production-ready, full-stack e-commerce platform built with **Next.js 14**, **TypeScript**, and **MongoDB**. This repository contains the complete DevSecOps pipeline to deploy the application on **AWS EKS** using **Terraform**, **Jenkins**, and **ArgoCD**.
 

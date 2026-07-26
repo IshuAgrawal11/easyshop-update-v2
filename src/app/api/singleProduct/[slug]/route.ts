@@ -4,12 +4,12 @@ import Product from '@/lib/models/product';
 
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
     await dbConnect();
-    
-    const { slug } = params;
+
+    const { slug } = await params;
     
     // First try to find by originalId (which is used as slug)
     let product = await Product.findOne({ originalId: slug });

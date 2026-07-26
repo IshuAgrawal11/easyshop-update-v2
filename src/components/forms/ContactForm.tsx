@@ -41,9 +41,8 @@ const ContactForm = () => {
 
   // Define a submit handler.
   function onSubmit(values: z.infer<typeof formSchema>) {
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
-    console.log(values);
+    // TODO: no backend endpoint exists yet to actually send this message.
+    void values;
   }
 
   return (

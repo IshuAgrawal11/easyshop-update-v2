@@ -46,15 +46,12 @@ const BillingAddressForm = ({ onFormDataChange }: BillingAddressFormProps) => {
 
   // Define a submit handler.
   function onSubmit(values: z.infer<typeof formSchema>) {
-    // Prevent actual form submission
-    console.log('Billing form values:', values);
     onFormDataChange(values);
   }
 
   // Update form data on change
   const onFormChange = () => {
     const values = form.getValues();
-    console.log('Form changed:', values);
     onFormDataChange(values);
   };
 

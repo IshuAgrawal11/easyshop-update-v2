@@ -73,8 +73,8 @@ const Navbar = () => {
       try {
         const res = await authenticated();
         dispatch(setAuthenticated(res));
-      } catch (error) {
-        console.log(error);
+      } catch {
+        dispatch(setAuthenticated(false));
       }
     };
 
@@ -88,8 +88,8 @@ const Navbar = () => {
       setIsConfirm(false);
       dispatch(setAuthenticated(false));
       router.push("/login");
-    } catch (error) {
-      console.log(error);
+    } catch {
+      // Cookie removal is local/idempotent — nothing actionable to recover from here.
     }
   };
 

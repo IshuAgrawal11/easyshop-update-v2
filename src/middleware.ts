@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getTokenFromRequest, isAuthenticated } from "./lib/auth/utils";
 
+// Only allow same-origin, relative redirect targets (blocks e.g. redirect=https://evil.com).
+function isSafeRedirectPath(path: string | null): path is string {
+  return !!path && path.startsWith("/") && !path.startsWith("//");
+}
+
 export async function middleware(request: NextRequest) {
   // Get token and check auth status
   const token = getTokenFromRequest(request);
@@ -25,7 +30,7 @@ export async function middleware(request: NextRequest) {
   // If trying to access auth pages while logged in
   if (isAuthPage && isAuth) {
     const redirectTo = request.nextUrl.searchParams.get('redirect');
-    if (redirectTo) {
+    if (isSafeRedirectPath(redirectTo)) {
       return NextResponse.redirect(new URL(redirectTo, request.url));
     }
     return NextResponse.redirect(new URL("/", request.url));
@@ -36,8 +41,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  // Add user info to headers if authenticated
+  // Never let a caller-supplied header masquerade as verified identity.
   const requestHeaders = new Headers(request.headers);
+  requestHeaders.delete("x-user-id");
+  requestHeaders.delete("x-user-role");
   if (isAuth) {
     requestHeaders.set("x-user-id", isAuth.userId);
     requestHeaders.set("x-user-role", isAuth.role);

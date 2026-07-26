@@ -48,7 +48,6 @@ const CheckoutPage = () => {
       ...prev,
       [type]: data
     }));
-    console.log(`Updated ${type} data:`, data);
   };
 
   return (

@@ -53,10 +53,23 @@ function getImagePath(originalPath: string, shopCategory: string): string {
   return `${CDN_URL}/${imageDir}/${fileName}`;
 }
 
+// This script does `Product.deleteMany({})` before reseeding — guard against
+// running it unattended against a database that looks like production.
+function assertSafeToWipe(uri: string) {
+  const looksProduction = /prod|production/i.test(uri);
+  if (looksProduction && !process.argv.includes('--force')) {
+    throw new Error(
+      'Refusing to wipe and reseed a database whose connection string looks like production. ' +
+      'Pass --force if this is really intended.'
+    );
+  }
+}
+
 async function migrateData() {
   try {
+    assertSafeToWipe(MONGODB_URI);
     console.log('Attempting to connect to MongoDB at:', MONGODB_URI);
-    
+
     await mongoose.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 5000, 
       socketTimeoutMS: 45000, 

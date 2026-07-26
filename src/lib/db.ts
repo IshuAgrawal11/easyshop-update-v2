@@ -9,13 +9,13 @@ declare global {
   var mongoose: MongooseCache | undefined;
 }
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/easyshop';
-
-if (!MONGODB_URI) {
+if (!process.env.MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env');
 }
 
-let cached: MongooseCache = (global.mongoose as MongooseCache) || {
+const MONGODB_URI = process.env.MONGODB_URI;
+
+const cached: MongooseCache = (global.mongoose as MongooseCache) || {
   conn: null,
   promise: null,
 };

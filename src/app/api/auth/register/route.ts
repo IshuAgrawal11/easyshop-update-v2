@@ -1,56 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import User from "@/lib/models/user";
 import dbConnect from "@/lib/db";
 import { generateToken } from "@/lib/auth/utils";
+import { AUTH_COOKIE_NAME, AUTH_COOKIE_MAX_AGE, authCookieOptions } from "@/lib/auth/cookie";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+
+const registerSchema = z.object({
+  name: z.string().min(2, "Name is required"),
+  email: z.string().email("Please provide a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters long"),
+});
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+    if (!checkRateLimit(`register:${ip}`, 5, 60 * 1000)) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
+
+    const parsed = registerSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message || "Invalid input" },
+        { status: 400 }
+      );
+    }
+    const { name, email, password } = parsed.data;
+
     await dbConnect();
-    const body = await request.json();
-    const { name, email, password } = body;
 
-    // Validate required fields
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { error: "Please provide all required fields" },
-        { status: 400 }
-      );
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: "Please provide a valid email address" },
-        { status: 400 }
-      );
-    }
-
-    // Validate password length
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters long" },
-        { status: 400 }
-      );
-    }
-
-    // Check if user already exists
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return NextResponse.json(
-        { error: "User already exists" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "User already exists" }, { status: 400 });
     }
 
-    // Create user
-    const user = await User.create({
-      name,
-      email,
-      password,
-    });
+    const user = await User.create({ name, email, password });
 
-    // Generate token
     const token = await generateToken({
       userId: user._id.toString(),
       role: user.role,
@@ -63,23 +52,20 @@ export async function POST(request: NextRequest) {
         email: user.email,
         role: user.role,
       },
-      token,
     });
 
-    // Set cookie
     response.cookies.set({
-      name: "token",
+      name: AUTH_COOKIE_NAME,
       value: token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/",
+      ...authCookieOptions,
+      maxAge: AUTH_COOKIE_MAX_AGE,
     });
 
     return response;
-  } catch (error: any) {
+  } catch (error) {
+    console.error("Registration error:", error);
     return NextResponse.json(
-      { error: error.message || "Something went wrong" },
+      { error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }

@@ -12,7 +12,7 @@ const ScrollToTopBtn = () => {
       document.body.scrollTop ||
       document.documentElement.scrollTop;
     const handleScroll = () => {
-      let currentScrollPos =
+      const currentScrollPos =
         window.scrollY ||
         document.body.scrollTop ||
         document.documentElement.scrollTop;

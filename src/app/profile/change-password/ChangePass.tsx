@@ -14,7 +14,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
+import fetchData from "@/lib/fetchDataFromApi";
 import { AnimatePresence, Variants, motion } from "framer-motion";
+import { useState } from "react";
 
 const ContainerVariants: Variants = {
   hidden: {
@@ -63,16 +66,40 @@ const formSchema = z
   });
 
 const ChangePassword = () => {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {},
+    defaultValues: {
+      oldPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
   });
 
-  // Define a submit handler.
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // Do something with the form values.
-
-    console.log(values);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
+    try {
+      await fetchData.put("/auth/change-password", {
+        oldPassword: values.oldPassword,
+        newPassword: values.newPassword,
+      });
+      form.reset();
+      toast({
+        title: "Success",
+        description: "Your password has been changed",
+        variant: "success",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Failed to change password",
+        description: error?.response?.data?.error || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -139,7 +166,9 @@ const ChangePassword = () => {
             </motion.div>
 
             <div className="flex justify-end">
-              <Button type="submit">Change</Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Changing..." : "Change"}
+              </Button>
             </div>
           </form>
         </Form>

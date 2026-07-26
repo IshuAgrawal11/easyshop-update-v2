@@ -1,6 +1,5 @@
 "use client";
 
-import { createCookies } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -17,7 +16,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Dispatch, SetStateAction, useState } from "react";
 import { useForm } from "react-hook-form";
-import { FcGoogle } from "react-icons/fc";
 import { LuLoader } from "react-icons/lu";
 import { useDispatch } from "react-redux";
 import { z } from "zod";
@@ -53,33 +51,21 @@ const SignupForm = ({ setIsOpen }: SignupFormProps) => {
     setIsLoading(true);
 
     try {
-      console.log('Submitting registration form:', values);
       const res = await fetchData.post("/auth/register", values);
-      console.log('Registration response:', res.data);
 
-      if (res.data.token) {
-        // First set the cookie
-        await createCookies(res.data.token);
-        
-        // Then update the auth state
-        dispatch(setAuthenticated(true));
-        dispatch(setCurrentUser(res.data.user));
+      dispatch(setAuthenticated(true));
+      dispatch(setCurrentUser(res.data.user));
 
-        toast({
-          title: "Success",
-          description: "You have successfully registered",
-          variant: "success",
-        });
+      toast({
+        title: "Success",
+        description: "You have successfully registered",
+        variant: "success",
+      });
 
-        // Small delay to ensure state is updated
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        setIsLoading(false);
-        setIsOpen && setIsOpen(false);
-        router.push("/");
-      }
+      setIsLoading(false);
+      setIsOpen && setIsOpen(false);
+      router.push("/");
     } catch (error: any) {
-      console.error('Registration error:', error?.response?.data);
       const errorMessage = error?.response?.data?.error || "Registration failed. Please try again.";
       
       toast({
@@ -164,27 +150,12 @@ const SignupForm = ({ setIsOpen }: SignupFormProps) => {
           disabled={isLoading}
           className="w-full mt-3 h-12 gap-3"
         >
-          <span>Login</span>
+          <span>Sign up</span>
           {isLoading && (
             <span className="text-base animate-spin">
               <LuLoader />
             </span>
           )}
-        </Button>
-
-        <div className="flex gap-3 items-center justify-center my-3">
-          <div className="flex-1 h-0.5 bg-muted"></div>
-          <p className="text-muted">Or</p>
-          <div className="flex-1 h-0.5 bg-muted"></div>
-        </div>
-        <Button
-          type="button"
-          className="w-full h-12 flex gap-4 bg-gray-900 border-input hover:text-white hover:bg-gray-800"
-        >
-          <span className="text-3xl">
-            <FcGoogle />
-          </span>
-          <span>Signup with google</span>
         </Button>
       </form>
     </Form>

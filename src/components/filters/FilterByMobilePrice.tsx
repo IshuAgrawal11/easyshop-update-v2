@@ -92,8 +92,6 @@ const FilterByMobilePrice = () => {
     return () => {};
   }, [searchParams]);
 
-  console.log(activeFilter);
-
   return (
     <div className="grid gap-4 pt-3">
       <div className="space-y-2">

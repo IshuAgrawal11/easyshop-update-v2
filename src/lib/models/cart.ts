@@ -51,13 +51,5 @@ cartSchema.pre('save', async function(next) {
   next();
 });
 
-// Delete existing model if it exists
-if (mongoose.models.Cart) {
-  delete mongoose.models.Cart;
-}
-
-// Delete existing model collection
-mongoose.connection.collections['carts']?.drop();
-
-const Cart = mongoose.model<ICart>('Cart', cartSchema);
+const Cart = mongoose.models.Cart || mongoose.model<ICart>('Cart', cartSchema);
 export default Cart;

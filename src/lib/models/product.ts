@@ -1,6 +1,12 @@
 import mongoose from 'mongoose';
 
 const productSchema = new mongoose.Schema({
+  // Products are seeded with a stable custom string id (see scripts/migrate-data.ts),
+  // not a Mongo-generated ObjectId — the schema must declare that explicitly so
+  // findById()/populate() cast against the real stored type instead of ObjectId.
+  _id: {
+    type: String
+  },
   originalId: {
     type: String,
     required: true,
@@ -53,7 +59,8 @@ const productSchema = new mongoose.Schema({
     type: String 
   }]
 }, {
-  timestamps: true
+  timestamps: true,
+  _id: false
 });
 
 export default mongoose.models.Product || mongoose.model('Product', productSchema);

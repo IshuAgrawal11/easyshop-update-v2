@@ -2,17 +2,19 @@ import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/db';
 import Product from '@/lib/models/product';
 import { requireAuth } from '@/lib/auth/utils';
+import { createProductSchema, SORTABLE_FIELDS } from '@/lib/validation/product';
+import { escapeRegex } from '@/lib/utils';
 
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
-    
+
     const { searchParams } = new URL(request.url);
     const query: any = {};
-    
+
     // Search by title or description
     if (searchParams.has('search')) {
-      const searchRegex = new RegExp(searchParams.get('search') as string, 'i');
+      const searchRegex = new RegExp(escapeRegex(searchParams.get('search') as string), 'i');
       query.$or = [
         { title: searchRegex },
         { description: searchRegex }
@@ -46,11 +48,13 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
 
-    // Sorting
+    // Sorting — only allow a known-safe set of fields as the sort key.
     let sort: any = { createdAt: -1 };
     if (searchParams.has('sort')) {
       const [field, order] = (searchParams.get('sort') as string).split(':');
-      sort = { [field]: order === 'desc' ? -1 : 1 };
+      if (SORTABLE_FIELDS.has(field)) {
+        sort = { [field]: order === 'desc' ? -1 : 1 };
+      }
     }
 
     const products = await Product.find(query)
@@ -90,14 +94,22 @@ export async function POST(request: NextRequest) {
 
     await dbConnect();
 
-    const body = await request.json();
-    const product = await Product.create(body);
+    const parsed = createProductSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message || 'Invalid product data' },
+        { status: 400 }
+      );
+    }
+
+    // Keep the _id/originalId invariant intact for every product, however it was created.
+    const product = await Product.create({ ...parsed.data, _id: parsed.data.originalId });
 
     return NextResponse.json(product, { status: 201 });
   } catch (error: any) {
     console.error('Error creating product:', error);
     return NextResponse.json(
-      { error: error.message || 'Internal Server Error' },
+      { error: error.message === 'Authentication required' ? error.message : 'Internal Server Error' },
       { status: error.message === 'Authentication required' ? 401 : 500 }
     );
   }

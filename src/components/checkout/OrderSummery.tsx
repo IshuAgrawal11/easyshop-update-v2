@@ -1,6 +1,7 @@
 "use client";
 
 import { removeFromCart } from "@/lib/features/cart/cartSlice";
+import { SHIPPING_COST, TAX_COST } from "@/lib/constants/pricing";
 import { useAppSelector } from "@/lib/hooks";
 import { totalPrice } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
@@ -56,9 +57,6 @@ const OrderSummery = ({ shippingData, billingData }: OrderSummeryProps) => {
         throw new Error('Please fill in both shipping and billing addresses');
       }
 
-      console.log('Shipping address:', shippingData);
-      console.log('Billing address:', billingData);
-
       // Validate addresses
       const validateAddress = (address: any, type: string) => {
         const missingFields = Object.entries(address)
@@ -73,18 +71,8 @@ const OrderSummery = ({ shippingData, billingData }: OrderSummeryProps) => {
       validateAddress(shippingData, 'shipping');
       validateAddress(billingData, 'billing');
 
-      console.log('Submitting order with data:', {
-        shippingAddress: shippingData,
-        billingAddress: billingData,
-        paymentMethod: selectedMethod,
-        items: cartItems.map(item => ({
-          productId: item._id,
-          quantity: item.amount || 1,
-          price: item.price
-        })),
-        total: totalPrice(cartItems) + 20
-      });
-
+      // The server recomputes price/total from the DB itself — these client
+      // values are only used for the optimistic UI, never trusted for money math.
       const orderData = {
         shippingAddress: shippingData,
         billingAddress: billingData,
@@ -92,12 +80,8 @@ const OrderSummery = ({ shippingData, billingData }: OrderSummeryProps) => {
         items: cartItems.map(item => ({
           productId: item._id,
           quantity: item.amount || 1,
-          price: item.price
         })),
-        total: totalPrice(cartItems) + 20 // Including shipping and tax
       };
-
-      console.log('Submitting order with data:', orderData);
 
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -108,8 +92,7 @@ const OrderSummery = ({ shippingData, billingData }: OrderSummeryProps) => {
       });
 
       const data = await response.json();
-      console.log('Server response:', data);
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to place order');
       }
@@ -117,11 +100,6 @@ const OrderSummery = ({ shippingData, billingData }: OrderSummeryProps) => {
       // Clear cart and redirect on success
       cartItems.forEach(item => dispatch(removeFromCart(item._id)));
       window.location.href = '/checkout/success';
-
-      // Clear cart and redirect to success page
-      cartItems.forEach(item => dispatch(removeFromCart(item._id)));
-      window.location.href = '/checkout/success';
-
     } catch (error: any) {
       console.error('Error placing order:', error);
       alert(error.message || 'Failed to place order');
@@ -138,7 +116,7 @@ const OrderSummery = ({ shippingData, billingData }: OrderSummeryProps) => {
         <h2 className="text-2xl font-bold mb-5">Order Summary</h2>
         <div className="pb-4">
           {cartItems.length <= 0 && (
-            <div className="text-center py-6">No prodduct select!</div>
+            <div className="text-center py-6">No products selected!</div>
           )}
           {cartItems.map((item) => (
             <motion.div
@@ -229,15 +207,15 @@ const OrderSummery = ({ shippingData, billingData }: OrderSummeryProps) => {
           </div>
           <div className="flex justify-between">
             <p>Shipping</p>
-            <p className="text-muted-foreground">$10</p>
+            <p className="text-muted-foreground">${SHIPPING_COST}</p>
           </div>
           <div className="flex justify-between">
             <p>Tax</p>
-            <p className="text-muted-foreground">$10</p>
+            <p className="text-muted-foreground">${TAX_COST}</p>
           </div>
           <div className="flex justify-between font-semibold">
             <p>Total</p>
-            <p>${totalPrice(cartItems) + 10 + 10}</p>
+            <p>${totalPrice(cartItems) + SHIPPING_COST + TAX_COST}</p>
           </div>
         </div>
         <Button

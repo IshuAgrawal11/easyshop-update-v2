@@ -124,6 +124,7 @@ export type AllProduct =
   | BooksProduct
   | MedicineProduct;
 
+// Intentionally an intersection — see the matching note in src/types.d.ts.
 export type SingleProductType = GroceryProduct &
   GadgetProduct &
   BakeryProduct &

@@ -8,6 +8,10 @@ export function cn(...inputs: ClassValue[]) {
 
 export const rgx = (value: string) => `(?<=^|,)${value}(?=,|$)`;
 
+// Escapes regex metacharacters in untrusted input before it's used to build
+// a RegExp from a user-supplied query string (prevents ReDoS/regex injection).
+export const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export const totalPrice = (cartItems: CartItem[]) => {
   return parseFloat(
     cartItems

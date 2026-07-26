@@ -50,13 +50,14 @@ const banners = [
   },
 ];
 
-export default function Home({
+export default async function Home({
   searchParams,
 }: {
-  searchParams: {
+  searchParams: Promise<{
     featured: string;
-  };
+  }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   return (
     <main>
       <HeroSlider heroImages={heroImages} />
@@ -64,7 +65,7 @@ export default function Home({
       <ShopCategories />
       <BooksCategory />
       <BekaryCategories />
-      <FeaturedProducts featured={searchParams.featured} />
+      <FeaturedProducts featured={resolvedSearchParams.featured} />
     </main>
   );
 }

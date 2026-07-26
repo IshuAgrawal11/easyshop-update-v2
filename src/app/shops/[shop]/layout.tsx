@@ -39,9 +39,9 @@ type ShopNames =
 
 type LayoutProps = Readonly<{
   children: React.ReactNode;
-  params: {
+  params: Promise<{
     shop: string;
-  };
+  }>;
 }>;
 
 // Dynamic metadata

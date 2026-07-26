@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { ICartItem } from './cart';
 
 export interface IOrderItem {
   product: string;
@@ -78,10 +77,7 @@ const orderSchema = new mongoose.Schema<IOrder>({
   timestamps: true
 });
 
-// Delete existing model if it exists
-if (mongoose.models.Order) {
-  delete mongoose.models.Order;
-}
+orderSchema.index({ user: 1 });
 
-const Order = mongoose.model<IOrder>('Order', orderSchema);
+const Order = mongoose.models.Order || mongoose.model<IOrder>('Order', orderSchema);
 export default Order;

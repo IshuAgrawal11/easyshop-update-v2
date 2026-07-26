@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { createCookies } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -24,7 +23,6 @@ import fetchData from "@/lib/fetchDataFromApi";
 import { useAppSelector } from "@/lib/hooks";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Dispatch, SetStateAction, useState } from "react";
-import { FcGoogle } from "react-icons/fc";
 import { LuLoader } from "react-icons/lu";
 import { useDispatch } from "react-redux";
 import { useToast } from "../ui/use-toast";
@@ -49,8 +47,8 @@ export function LoginForm({ setIsOpen }: LoginFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "demo@gmail.com",
-      password: "test1234",
+      email: "",
+      password: "",
     },
   });
 
@@ -59,7 +57,6 @@ export function LoginForm({ setIsOpen }: LoginFormProps) {
 
     try {
       const res = await fetchData.post("/auth/login", values);
-      await createCookies(res.data.token);
       dispatch(setCurrentUser(res.data.user as User));
       dispatch(setAuthenticated(true));
       form.reset();
@@ -151,15 +148,6 @@ export function LoginForm({ setIsOpen }: LoginFormProps) {
           ) : (
             "Login"
           )}
-        </Button>
-
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full flex items-center gap-2"
-        >
-          <FcGoogle className="text-xl" />
-          Login with Google
         </Button>
       </form>
     </Form>

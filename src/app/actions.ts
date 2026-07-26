@@ -1,39 +1,27 @@
 "use server";
 
 import { cookies } from 'next/headers';
+import { AUTH_COOKIE_NAME } from '@/lib/auth/cookie';
 
-export async function createCookies(token: string) {
-  const url = new URL(process.env.NEXTAUTH_URL || 'http://localhost:3000');
-  
-  // Log cookie creation
-  console.log('Creating cookie with domain:', url.hostname);
-  
-  cookies().set({
-    name: "token",
-    value: token,
-    httpOnly: true, // Allow client-side access
-    secure: true, // Set to false for HTTP on EC2
-    sameSite: "strict",
-    path: "/",
-    domain: url.hostname === 'localhost' ? 'localhost' : undefined, // Let browser set domain for EC2
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  });
-}
+// The auth cookie itself is set server-side by the login/register API routes
+// (see src/lib/auth/cookie.ts) — the browser stores it automatically from
+// the Set-Cookie response header, so no client-triggered "create cookie"
+// action is needed here.
 
 export async function removeCookies() {
-  cookies().delete({
-    name: "token",
+  const cookieStore = await cookies();
+  cookieStore.delete({
+    name: AUTH_COOKIE_NAME,
     path: "/",
   });
 }
 
 export async function getCookies(name: string) {
-  const cookieStore = cookies();
-  const cookie = await cookieStore.get(name);
-  return cookie;
+  const cookieStore = await cookies();
+  return cookieStore.get(name);
 }
 
 export async function authenticated() {
-  const token = await getCookies("token");
+  const token = await getCookies(AUTH_COOKIE_NAME);
   return !!token;
 }

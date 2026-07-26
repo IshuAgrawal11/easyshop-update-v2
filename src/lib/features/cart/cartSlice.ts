@@ -54,6 +54,7 @@ export const cartSlice = createSlice({
       if (item) {
         item.selectedColor = state.selectedColor;
         item.selectedSize = state.selectedSize;
+        localStorage.setItem("cartItems", JSON.stringify(state.cartItems));
         return;
       }
       state.cartItems = [...state.cartItems, action.payload];
@@ -95,6 +96,7 @@ export const cartSlice = createSlice({
           return;
         }
         item.amount = item.amount ? item.amount - 1 : 1;
+        localStorage.setItem("cartItems", JSON.stringify(state.cartItems));
         return;
       }
     },

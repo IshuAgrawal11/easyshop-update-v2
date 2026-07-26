@@ -86,9 +86,8 @@ const ProfileForm = () => {
 
   // Define a submit handler.
   function onSubmit(values: z.infer<typeof formSchema>) {
-    // Do something with the form values.
-
-    console.log(values);
+    // TODO: no backend endpoint exists yet to actually persist profile edits.
+    void values;
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

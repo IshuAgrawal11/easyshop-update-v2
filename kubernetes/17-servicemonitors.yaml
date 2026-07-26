@@ -1,0 +1,39 @@
+# Prometheus Operator CRDs (installed by the kube-prometheus-stack Helm
+# release in terraform/observability.tf) — these only apply successfully
+# once that release exists, which Terraform sets up before this
+# kubernetes/ folder is ever applied by Jenkins/kubectl.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: easyshop-app
+  namespace: easyshop
+spec:
+  selector:
+    matchLabels:
+      app: easyshop
+  namespaceSelector:
+    matchNames:
+      - easyshop
+  endpoints:
+    - port: http
+      path: /api/metrics
+      interval: 15s
+      bearerTokenSecret:
+        name: easyshop-secrets
+        key: METRICS_TOKEN
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: mongodb-exporter
+  namespace: easyshop
+spec:
+  selector:
+    matchLabels:
+      app: mongodb-exporter
+  namespaceSelector:
+    matchNames:
+      - easyshop
+  endpoints:
+    - port: metrics
+      interval: 15s

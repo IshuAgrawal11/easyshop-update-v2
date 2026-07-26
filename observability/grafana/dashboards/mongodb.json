@@ -1,0 +1,77 @@
+{
+  "title": "EasyShop — MongoDB",
+  "uid": "easyshop-mongodb",
+  "tags": ["easyshop", "mongodb"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Exporter up",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "mongodb_up", "refId": "A" }]
+    },
+    {
+      "id": 2,
+      "title": "Connections",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 0 },
+      "targets": [
+        { "expr": "mongodb_connections{state=\"current\"}", "legendFormat": "current", "refId": "A" },
+        { "expr": "mongodb_connections{state=\"available\"}", "legendFormat": "available", "refId": "B" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Operations/sec by type",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(mongodb_op_counters_total[5m])",
+          "legendFormat": "{{type}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Memory usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "decmbytes" }, "overrides": [] },
+      "targets": [
+        { "expr": "mongodb_memory{type=\"resident\"}", "legendFormat": "resident", "refId": "A" },
+        { "expr": "mongodb_memory{type=\"virtual\"}", "legendFormat": "virtual", "refId": "B" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Document operations/sec",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "rate(mongodb_mongod_metrics_document_total[5m])",
+          "legendFormat": "{{state}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Network bytes/sec",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
+      "targets": [
+        { "expr": "rate(mongodb_network_bytes_total[5m])", "legendFormat": "{{state}}", "refId": "A" }
+      ]
+    }
+  ]
+}

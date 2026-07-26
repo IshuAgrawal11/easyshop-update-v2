@@ -19,4 +19,17 @@ db.getSiblingDB('easyshop').createUser({
   pwd: password,
   roles: [{ role: 'readWrite', db: 'easyshop' }]
 });
+
+// Separate, even-more-restricted user for mongodb_exporter — clusterMonitor
+// is MongoDB's built-in read-only role for exactly this (serverStatus,
+// replSetGetStatus, etc.). Reusing the app's readWrite user here would mean
+// the exporter can read/write real order and user data, which it has no
+// business doing.
+const exporterUsername = process.env.MONGO_EXPORTER_USERNAME;
+const exporterPassword = process.env.MONGO_EXPORTER_PASSWORD;
+db.getSiblingDB('admin').createUser({
+  user: exporterUsername,
+  pwd: exporterPassword,
+  roles: [{ role: 'clusterMonitor', db: 'admin' }],
+});
 EOF

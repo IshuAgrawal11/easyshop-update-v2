@@ -1,0 +1,225 @@
+# Auto-imported into Grafana by the kube-prometheus-stack dashboard
+# sidecar (terraform/observability.tf sets sidecar.dashboards.enabled=true,
+# searchNamespace=ALL) — no manual Grafana UI import step needed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: easyshop-app-dashboard
+  namespace: easyshop
+  labels:
+    grafana_dashboard: "1"
+data:
+  easyshop-app.json: |
+    {
+      "title": "EasyShop — Application",
+      "uid": "easyshop-app",
+      "tags": ["easyshop", "application"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "10s",
+      "time": { "from": "now-6h", "to": "now" },
+      "templating": { "list": [] },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Request rate by route",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total[5m])) by (route)",
+              "legendFormat": "{{route}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Error rate (5xx %)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))",
+              "legendFormat": "error rate",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Latency (p50 / p95 / p99)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p50",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p95",
+              "refId": "B"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p99",
+              "refId": "C"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Requests in-flight (by status)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total[5m])) by (status)",
+              "legendFormat": "{{status}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Orders created (rate, 5m)",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 16 },
+          "targets": [
+            { "expr": "rate(orders_created_total[5m])", "refId": "A" }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "Login attempts vs failures (rate, 5m)",
+          "type": "timeseries",
+          "gridPos": { "h": 6, "w": 18, "x": 6, "y": 16 },
+          "targets": [
+            { "expr": "rate(login_attempts_total[5m])", "legendFormat": "attempts", "refId": "A" },
+            { "expr": "rate(login_failures_total[5m])", "legendFormat": "failures", "refId": "B" }
+          ]
+        },
+        {
+          "id": 7,
+          "title": "Process memory (resident)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 22 },
+          "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+          "targets": [
+            { "expr": "process_resident_memory_bytes", "legendFormat": "RSS", "refId": "A" }
+          ]
+        },
+        {
+          "id": 8,
+          "title": "Event loop lag",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 22 },
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+          "targets": [
+            { "expr": "nodejs_eventloop_lag_seconds", "legendFormat": "lag", "refId": "A" }
+          ]
+        },
+        {
+          "id": 9,
+          "title": "CPU usage",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 22 },
+          "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+          "targets": [
+            { "expr": "rate(process_cpu_seconds_total[5m])", "legendFormat": "CPU", "refId": "A" }
+          ]
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: easyshop-mongodb-dashboard
+  namespace: easyshop
+  labels:
+    grafana_dashboard: "1"
+data:
+  mongodb.json: |
+    {
+      "title": "EasyShop — MongoDB",
+      "uid": "easyshop-mongodb",
+      "tags": ["easyshop", "mongodb"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "10s",
+      "time": { "from": "now-6h", "to": "now" },
+      "templating": { "list": [] },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Exporter up",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "targets": [{ "expr": "mongodb_up", "refId": "A" }]
+        },
+        {
+          "id": 2,
+          "title": "Connections",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 18, "x": 6, "y": 0 },
+          "targets": [
+            { "expr": "mongodb_connections{state=\"current\"}", "legendFormat": "current", "refId": "A" },
+            { "expr": "mongodb_connections{state=\"available\"}", "legendFormat": "available", "refId": "B" }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Operations/sec by type",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "rate(mongodb_op_counters_total[5m])",
+              "legendFormat": "{{type}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Memory usage",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "fieldConfig": { "defaults": { "unit": "decmbytes" }, "overrides": [] },
+          "targets": [
+            { "expr": "mongodb_memory{type=\"resident\"}", "legendFormat": "resident", "refId": "A" },
+            { "expr": "mongodb_memory{type=\"virtual\"}", "legendFormat": "virtual", "refId": "B" }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Document operations/sec",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "targets": [
+            {
+              "expr": "rate(mongodb_mongod_metrics_document_total[5m])",
+              "legendFormat": "{{state}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "Network bytes/sec",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
+          "targets": [
+            { "expr": "rate(mongodb_network_bytes_total[5m])", "legendFormat": "{{state}}", "refId": "A" }
+          ]
+        }
+      ]
+    }

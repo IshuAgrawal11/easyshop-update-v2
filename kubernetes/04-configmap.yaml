@@ -13,3 +13,4 @@ data:
   # authentication on EKS just like it already does in local Docker Compose.
   MONGO_INITDB_ROOT_USERNAME: "root"
   MONGO_APP_USERNAME: "easyshop_app"
+  MONGO_EXPORTER_USERNAME: "mongodb_exporter"

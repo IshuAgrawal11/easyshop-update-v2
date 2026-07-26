@@ -69,27 +69,34 @@ variable "intra_subnets" {
 }
 
 variable "node_instance_type" {
-  description = "Instance type for the EKS managed node group"
+  description = <<-EOT
+    Instance type for the EKS managed node group. t3.large (not t3.medium)
+    because the observability stack (Prometheus, Grafana, Loki, Jaeger,
+    OTel Collector, exporters) alongside the app + MongoDB needs more than
+    the 4GB RAM a t3.medium has — this roughly doubles the node group's EC2
+    cost versus t3.medium, which is the real trade-off for having metrics/
+    logs/traces actually fit.
+  EOT
   type        = string
-  default     = "t3.medium"
+  default     = "t3.large"
 }
 
 variable "node_desired_size" {
   description = "Desired node count in the managed node group"
   type        = number
-  default     = 2
+  default     = 3
 }
 
 variable "node_min_size" {
   description = "Minimum node count in the managed node group"
   type        = number
-  default     = 2
+  default     = 3
 }
 
 variable "node_max_size" {
   description = "Maximum node count in the managed node group"
   type        = number
-  default     = 3
+  default     = 5
 }
 
 variable "admin_cidr" {

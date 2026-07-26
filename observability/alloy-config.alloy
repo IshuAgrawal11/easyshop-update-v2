@@ -1,0 +1,33 @@
+// Grafana Alloy — discovers every container on this Docker host and ships
+// its logs to Loki. Replaces Promtail (EOL as of March 2026, no further
+// updates) which did the same job in the old docker_sd_configs style.
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Promotes the container name (Docker prefixes it with "/") into a proper
+// "container" label — without this, every log stream only carries a
+// generic "unknown_service" label and container-scoped queries in Grafana
+// (e.g. {container="easyshop"}) return nothing.
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "default" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

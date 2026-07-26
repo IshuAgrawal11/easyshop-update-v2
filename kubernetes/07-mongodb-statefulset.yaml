@@ -43,6 +43,16 @@ spec:
                 secretKeyRef:
                   name: easyshop-secrets
                   key: MONGO_APP_PASSWORD
+            - name: MONGO_EXPORTER_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: easyshop-config
+                  key: MONGO_EXPORTER_USERNAME
+            - name: MONGO_EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: easyshop-secrets
+                  key: MONGO_EXPORTER_PASSWORD
           volumeMounts:
             - name: mongodb-storage
               mountPath: /data/db

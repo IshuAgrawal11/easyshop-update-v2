@@ -199,6 +199,22 @@ pipeline {
                     kubectl apply -f kubernetes/09-easyshop-service.yaml
                     kubectl apply -f kubernetes/11-hpa.yaml
                     kubectl apply -f kubernetes/15-easyshop-pdb.yaml
+                    kubectl apply -f kubernetes/16-mongodb-exporter.yaml
+                '''
+
+                // ServiceMonitor/dashboard ConfigMaps depend on CRDs that
+                // only exist once terraform/observability.tf's
+                // kube-prometheus-stack release has been installed — if
+                // it hasn't (e.g. this is a brand new cluster before that
+                // apply), skip rather than fail the whole deploy over
+                // observability wiring.
+                sh '''
+                    if kubectl get crd servicemonitors.monitoring.coreos.com >/dev/null 2>&1; then
+                      kubectl apply -f kubernetes/17-servicemonitors.yaml
+                      kubectl apply -f kubernetes/18-grafana-dashboards.yaml
+                    else
+                      echo "Prometheus Operator CRDs not found yet — skipping ServiceMonitor/dashboard apply (run terraform apply for the observability stack first)"
+                    fi
                 '''
 
                 // The deployment manifest's image tag is plain text

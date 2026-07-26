@@ -31,6 +31,7 @@
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [CI/CD Pipeline](#cicd-pipeline)
+- [Observability](#observability)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Quickstart with Docker Compose](#quickstart-with-docker-compose)
@@ -77,6 +78,9 @@ Compose or on AWS EKS via Terraform + Jenkins.
 - ☁️ **Infrastructure as Code** — the entire AWS footprint (VPC, EKS cluster + managed node
   group, S3, CloudFront, IAM) is provisioned by Terraform using the community
   `terraform-aws-modules`.
+- 📊 **Full observability** — metrics, logs, and distributed tracing (Prometheus, Loki,
+  Jaeger, wired up via OpenTelemetry) unified in Grafana, with the same stack running
+  identically in Docker Compose and on EKS.
 
 ## Tech Stack
 
@@ -96,6 +100,10 @@ Compose or on AWS EKS via Terraform + Jenkins.
 | **CI/CD** | Jenkins |
 | **Security scanning** | Trivy, OWASP Dependency-Check, SonarQube |
 | **Cloud** | AWS (EKS, EC2, S3, CloudFront, IAM) |
+| **Metrics** | Prometheus, `prom-client`, `mongodb_exporter` |
+| **Logs** | Grafana Loki, Grafana Alloy |
+| **Tracing** | Jaeger, OpenTelemetry (`@vercel/otel`) |
+| **Dashboards** | Grafana |
 
 ## Architecture
 
@@ -110,6 +118,22 @@ flowchart TB
             Mongo[("MongoDB\nStatefulSet")]
             ELB --> App
             App --> Mongo
+
+            subgraph OBS["monitoring namespace"]
+                OTel["OTel Collector"]
+                Prom[("Prometheus")]
+                LokiDB[("Loki")]
+                JaegerDB[("Jaeger")]
+                Grafana["Grafana"]
+                Alloy["Alloy"]
+                App -.traces.-> OTel
+                OTel -.-> JaegerDB
+                Prom -.scrapes /api/metrics.-> App
+                Alloy -.ships pod logs.-> LokiDB
+                Grafana --> Prom
+                Grafana --> LokiDB
+                Grafana --> JaegerDB
+            end
         end
         S3[("S3 Bucket\nProduct Images")]
         CF["CloudFront CDN"]
@@ -161,6 +185,66 @@ gate, fails the build before anything reaches production. The smoke test stage p
 live load balancer's `/api/health` endpoint after deploy — a rollout that "succeeds" but
 serves a broken app still fails the pipeline.
 
+## Observability
+
+Metrics, logs, and traces, unified in one Grafana instance — the exact same stack runs
+locally via Docker Compose and on EKS via Terraform-managed Helm releases, so what you see
+on your laptop is what you get in production.
+
+| Pillar | Tool | How it gets there |
+|---|---|---|
+| **Metrics** | Prometheus | The app exposes `/api/metrics` (`prom-client`, bearer-token protected); Prometheus scrapes it, the OTel Collector, and `mongodb_exporter` |
+| **Logs** | Loki | Structured JSON (`pino`) to stdout → Grafana Alloy (container/pod log discovery) → Loki |
+| **Traces** | Jaeger | `@vercel/otel` in `src/instrumentation.ts` → OTLP → OTel Collector → Jaeger |
+| **Dashboards** | Grafana | Auto-provisioned datasources (Prometheus/Loki/Jaeger) + two custom dashboards (`EasyShop — Application`, `EasyShop — MongoDB`), auto-imported on startup |
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as EasyShop App
+    participant M as MongoDB
+    participant O as OTel Collector
+    participant J as Jaeger
+    participant P as Prometheus
+    participant L as Loki
+    participant G as Grafana
+
+    U->>A: POST /api/orders
+    A->>A: start span "order.create"
+    A->>M: findOne(product), Order.create()
+    M-->>A: result (traced as a child span)
+    A->>A: logger.info("order created") → stdout
+    A->>A: ordersCreatedTotal.inc()
+    A-->>U: 200 OK
+
+    A->>O: export span (OTLP)
+    O->>J: forward trace
+    Note over A,P: separately, on its own interval
+    P->>A: GET /api/metrics (bearer token)
+    Note over A,L: Alloy tails container stdout
+    L->>L: ingest log line
+
+    G->>P: query metrics
+    G->>L: query logs
+    G->>J: query trace
+    Note over G: same request, all three signals, one screen
+```
+
+Kubernetes/node-level dashboards (~20 of them) come bundled with kube-prometheus-stack out
+of the box — only the app and MongoDB dashboards needed building from scratch here.
+
+**Reaching the UIs:**
+
+| | Local (Docker Compose) | EKS |
+|---|---|---|
+| Grafana | http://localhost:3001 (`admin` / value of `GRAFANA_ADMIN_PASSWORD`, default `admin`) | `kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80` (password: `terraform output grafana_admin_password`) |
+| Prometheus | http://localhost:9090 | `kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090` |
+| Jaeger | http://localhost:16686 | `kubectl port-forward -n monitoring svc/jaeger-query 16686:16686` |
+
+(`port-forward`, not a public LoadBalancer, for the same reason the app itself isn't behind
+a domain yet — see [Deploying to AWS](#deploying-to-aws-eks). Expose these properly once you
+have TLS and a real access-control story in front of them.)
+
 ## Getting Started
 
 ### Prerequisites
@@ -171,22 +255,26 @@ serves a broken app still fails the pipeline.
 
 ### Quickstart with Docker Compose
 
-This spins up the app, MongoDB (with authentication enabled), and a one-shot data-seeding
-job — no local Node/Mongo install required.
+This spins up the app, MongoDB (with authentication enabled), a one-shot data-seeding job,
+and the full observability stack (Prometheus, Grafana, Loki, Jaeger, OTel Collector) — no
+local Node/Mongo install required.
 
 ```bash
 git clone https://github.com/IshuAgrawal11/production-ready-e-commerce-application.git
 cd production-ready-e-commerce-application
 
 cp .env.example .env
-# Edit .env: set JWT_SECRET (openssl rand -hex 32) and the Mongo passwords.
+# Edit .env: set JWT_SECRET and METRICS_TOKEN (openssl rand -hex 32 each), the Mongo
+# passwords, and MONGO_EXPORTER_PASSWORD.
 # Leave CDN_URL/CDN_HOSTNAME empty to serve product images from public/ locally.
 
 docker compose up --build -d
 ```
 
-Open **http://localhost:3000**. To follow logs: `docker compose logs -f app`. To stop:
-`docker compose down` (add `-v` to also wipe the MongoDB volume).
+Open **http://localhost:3000** for the app, **http://localhost:3001** for Grafana (see
+[Observability](#observability)). To follow logs: `docker compose logs -f app`. To stop:
+`docker compose down` (add `-v` to also wipe all data volumes, including Mongo/Prometheus/
+Loki/Grafana).
 
 ### Local Development without Docker
 
@@ -210,6 +298,9 @@ See [`.env.example`](.env.example) for the full, documented list. The essentials
 | `NEXT_PUBLIC_API_URL` | Base URL the client uses to call the API |
 | `MONGO_INITDB_ROOT_USERNAME` / `MONGO_INITDB_ROOT_PASSWORD` | Mongo container root credentials (Docker Compose only) |
 | `MONGO_APP_USERNAME` / `MONGO_APP_PASSWORD` | Least-privilege app-level Mongo user, created by `mongo-init/` |
+| `MONGO_EXPORTER_USERNAME` / `MONGO_EXPORTER_PASSWORD` | Separate `clusterMonitor`-role user for `mongodb_exporter` — deliberately not the app's `readWrite` user |
+| `METRICS_TOKEN` | Bearer token Prometheus sends to scrape `/api/metrics` — generate with `openssl rand -hex 32` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Where the app sends traces (the OTel Collector, not Jaeger directly) |
 
 `.env` is git-ignored on purpose — never commit real secrets.
 
@@ -226,17 +317,22 @@ See [`.env.example`](.env.example) for the full, documented list. The essentials
 │   │   ├── models/              # Mongoose schemas (User, Product, Cart, Order)
 │   │   ├── validation/          # Zod schemas
 │   │   └── constants/           # Shared pricing constants
+│   ├── instrumentation.ts     # OpenTelemetry registration (traces)
 │   └── middleware.ts           # Route protection, redirect/header hardening
 ├── scripts/
 │   ├── migrate-data.ts        # Seeds MongoDB from .db/db.json
 │   └── Dockerfile.migration    # Migration job image
+├── observability/             # otel-collector/prometheus/loki/alloy configs +
+│                               # Grafana provisioning & dashboards (Docker Compose)
 ├── kubernetes/                # Namespace, ConfigMap/Secrets, Deployment, Service,
-│                               # StatefulSet, HPA, Ingress, migration Job (00-12)
+│                               # StatefulSet, HPA, Ingress, migration Job, mongodb-exporter,
+│                               # ServiceMonitors, Grafana dashboard ConfigMaps (00-18)
 ├── terraform/                 # VPC, EKS cluster + node group, IAM, S3 + CloudFront,
-│                               # Jenkins EC2 agent (see terraform/bootstrap/ for remote state)
+│                               # observability Helm releases, Jenkins EC2 agent
+│                               # (see terraform/bootstrap/ for remote state)
 ├── Jenkinsfile                # Full CI/CD pipeline definition
 ├── Dockerfile                 # Multi-stage build (deps → builder → runner)
-├── docker-compose.yml         # Local app + MongoDB + migration stack
+├── docker-compose.yml         # App + MongoDB + migration + full observability stack
 └── vitest.config.ts
 ```
 
@@ -278,23 +374,29 @@ The short version — see the comments in `terraform/` and `Jenkinsfile` for the
    cd terraform/bootstrap && terraform init && terraform apply
    ```
 2. **Provision the AWS infrastructure** (VPC, EKS cluster + managed node group, IAM, S3 +
-   CloudFront):
+   CloudFront, EBS CSI driver, **and** the Prometheus/Grafana/Loki/Jaeger/OTel Collector
+   Helm releases — `terraform/observability.tf`):
    ```bash
    cd terraform && terraform init && terraform plan   # review before applying
    terraform apply
+   terraform output grafana_admin_password            # save this
    ```
 3. **Point kubectl at the new cluster**:
    ```bash
    aws eks update-kubeconfig --region eu-north-1 --name easyshop
    ```
-4. **Deploy the app**:
+4. **Deploy the app** (`17`/`18` need the Prometheus Operator CRDs from step 2 to exist first):
    ```bash
    kubectl apply -f kubernetes/01-namespace.yaml -f kubernetes/02-mongodb-pv.yaml \
      -f kubernetes/03-mongodb-pvc.yaml -f kubernetes/04-configmap.yaml \
      -f kubernetes/05-secrets.yaml -f kubernetes/06-mongodb-service.yaml \
-     -f kubernetes/07-mongodb-statefulset.yaml -f kubernetes/08-easyshop-deployment.yaml \
-     -f kubernetes/09-easyshop-service.yaml -f kubernetes/11-hpa.yaml \
-     -f kubernetes/12-migration-job.yaml
+     -f kubernetes/13-mongodb-init-configmap.yaml -f kubernetes/07-mongodb-statefulset.yaml \
+     -f kubernetes/14-mongodb-networkpolicy.yaml
+   kubectl rollout status statefulset/mongodb -n easyshop
+   kubectl apply -f kubernetes/08-easyshop-deployment.yaml -f kubernetes/09-easyshop-service.yaml \
+     -f kubernetes/11-hpa.yaml -f kubernetes/15-easyshop-pdb.yaml -f kubernetes/16-mongodb-exporter.yaml \
+     -f kubernetes/17-servicemonitors.yaml -f kubernetes/18-grafana-dashboards.yaml
+   kubectl apply -f kubernetes/12-migration-job.yaml
    ```
 5. Grab the load balancer hostname with `kubectl get svc easyshop-service -n easyshop`, and
    hit `http://<hostname>/api/health` to confirm it's live. Once you have a real domain,

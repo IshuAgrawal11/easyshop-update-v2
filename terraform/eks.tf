@@ -25,6 +25,16 @@ module "eks" {
   # system:masters").
   enable_cluster_creator_admin_permissions = true
 
+  # enable_irsa defaults to true (creates the OIDC provider this module
+  # instance exposes via oidc_provider/oidc_provider_arn) — that's what lets
+  # the EBS CSI driver authenticate as its own IAM role. The addon itself is
+  # a standalone `aws_eks_addon` resource in iam.tf, not declared here via
+  # this module's own `addons` input — this module's addons input can't
+  # depend on aws_iam_role.ebs_csi, because that role's trust policy in turn
+  # depends on THIS module's own oidc_provider_arn output. A module can't
+  # consume its own output as one of its own inputs — that's a dependency
+  # cycle Terraform will refuse to plan.
+
   eks_managed_node_groups = {
     easyshop_nodes = {
       name           = "easyshop-nodes"

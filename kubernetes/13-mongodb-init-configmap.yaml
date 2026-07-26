@@ -21,4 +21,15 @@ data:
       pwd: password,
       roles: [{ role: 'readWrite', db: 'easyshop' }]
     });
+
+    // Separate, read-only user for mongodb-exporter — clusterMonitor is
+    // MongoDB's built-in role for exactly this. Reusing the app's readWrite
+    // user would let the exporter read/write real order and user data.
+    const exporterUsername = process.env.MONGO_EXPORTER_USERNAME;
+    const exporterPassword = process.env.MONGO_EXPORTER_PASSWORD;
+    db.getSiblingDB('admin').createUser({
+      user: exporterUsername,
+      pwd: exporterPassword,
+      roles: [{ role: 'clusterMonitor', db: 'admin' }],
+    });
     EOF

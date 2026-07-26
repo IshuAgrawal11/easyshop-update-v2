@@ -43,6 +43,10 @@ spec:
                 secretKeyRef:
                   name: easyshop-secrets
                   key: JWT_SECRET
+            - name: OTEL_SERVICE_NAME
+              value: "easyshop"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://opentelemetry-collector.monitoring.svc.cluster.local:4318"
           resources:
             requests:
               memory: "256Mi"

@@ -1,0 +1,56 @@
+# Prometheus metrics for MongoDB — nothing in kube-prometheus-stack covers
+# this automatically, unlike node/cluster health.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-exporter
+  namespace: easyshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb-exporter
+  template:
+    metadata:
+      labels:
+        app: mongodb-exporter
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: mongodb-exporter
+          image: percona/mongodb_exporter:0.44
+          # No --collect-all: it pulls in collectors (currentOp, $indexStats)
+          # that need broader access than the exporter's clusterMonitor-role
+          # user has, and crash the exporter outright on an auth error
+          # rather than degrading gracefully.
+          env:
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: easyshop-secrets
+                  key: MONGODB_EXPORTER_URI
+          ports:
+            - name: metrics
+              containerPort: 9216
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-exporter
+  namespace: easyshop
+  labels:
+    app: mongodb-exporter
+spec:
+  ports:
+    - name: metrics
+      port: 9216
+      targetPort: 9216
+  selector:
+    app: mongodb-exporter

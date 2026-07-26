@@ -38,6 +38,8 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 30s
@@ -47,6 +49,134 @@ services:
     depends_on:
       migration:
         condition: service_completed_successfully
+      otel-collector:
+        condition: service_started
+    networks:
+      - easyshop-network
+    restart: unless-stopped
+
+  # --- Observability: tracing ---
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: easyshop-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    depends_on:
+      jaeger:
+        condition: service_started
+    networks:
+      - easyshop-network
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: easyshop-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Jaeger UI
+    networks:
+      - easyshop-network
+    restart: unless-stopped
+
+  # --- Observability: metrics ---
+
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.44
+    container_name: easyshop-mongodb-exporter
+    # Uses its own least-privilege clusterMonitor-role user (created by
+    # mongo-init/init-mongo.sh), not the app's readWrite credentials — and
+    # not --collect-all, which pulls in collectors (currentOp, $indexStats)
+    # that need broader access than a monitoring-only role has, and which
+    # crash the exporter outright on an auth error rather than degrading.
+    command:
+      - "--mongodb.uri=mongodb://$MONGO_EXPORTER_USERNAME:$MONGO_EXPORTER_PASSWORD@easyshop-mongodb:27017/admin?authSource=admin"
+    env_file:
+      - .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - easyshop-network
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: easyshop-prometheus
+    entrypoint: ["/bin/sh", "-c"]
+    # Prometheus's config format has no env-var interpolation — write the
+    # real METRICS_TOKEN to a file at startup instead of committing it into
+    # prometheus.yml.
+    command:
+      - |
+        echo -n "$$METRICS_TOKEN" > /etc/prometheus/metrics_token
+        exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
+    env_file:
+      - .env
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      app:
+        condition: service_healthy
+      mongodb-exporter:
+        condition: service_started
+    networks:
+      - easyshop-network
+    restart: unless-stopped
+
+  # --- Observability: logs ---
+
+  loki:
+    image: grafana/loki:latest
+    container_name: easyshop-loki
+    command: ["-config.file=/etc/loki/loki-config.yaml"]
+    volumes:
+      - ./observability/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - easyshop-network
+    restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: easyshop-alloy
+    command:
+      - "run"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "/etc/alloy/config.alloy"
+    volumes:
+      - ./observability/alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      loki:
+        condition: service_started
+    networks:
+      - easyshop-network
+    restart: unless-stopped
+
+  # --- Observability: unified UI ---
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: easyshop-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - jaeger
     networks:
       - easyshop-network
     restart: unless-stopped
@@ -58,3 +188,9 @@ networks:
 volumes:
   mongodb_data:
     name: mongodb_data
+  prometheus_data:
+    name: prometheus_data
+  loki_data:
+    name: loki_data
+  grafana_data:
+    name: grafana_data

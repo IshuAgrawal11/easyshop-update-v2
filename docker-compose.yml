@@ -1,6 +1,6 @@
 services:
   mongodb:
-    image: mongo:6.0.14
+    image: mongo:latest
     container_name: easyshop-mongodb
     ports:
       - "27017:27017"

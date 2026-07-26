@@ -18,16 +18,6 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# The build step only imports server modules to bundle them — it never
-# actually needs a working secret/DB connection. These placeholders satisfy
-# the fail-fast checks in src/lib/auth/utils.ts and src/lib/db.ts at build
-# time; the real values come from docker-compose's env_file at container
-# start and are never baked into this image (each stage is a fresh FROM).
-ARG JWT_SECRET=build-time-placeholder-not-used-at-runtime
-ARG MONGODB_URI=mongodb://localhost:27017/easyshop
-ENV JWT_SECRET=$JWT_SECRET
-ENV MONGODB_URI=$MONGODB_URI
-
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 

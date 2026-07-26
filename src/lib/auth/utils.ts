@@ -1,11 +1,20 @@
 import { NextRequest } from 'next/server';
 import { jwtVerify, SignJWT } from 'jose';
 
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is not set');
-}
+// Read lazily (only when a token is actually signed/verified) rather than at
+// module load — Next.js imports this module while bundling the build even
+// when no request is being handled, so throwing at the top level would
+// force a real JWT_SECRET to exist at build time, not just at runtime.
+let cachedSecret: Uint8Array | null = null;
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
+function getJwtSecret(): Uint8Array {
+  if (cachedSecret) return cachedSecret;
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
+  cachedSecret = new TextEncoder().encode(process.env.JWT_SECRET);
+  return cachedSecret;
+}
 
 export interface JWTPayload {
   userId: string;
@@ -17,7 +26,7 @@ export const generateToken = async (payload: JWTPayload): Promise<string> => {
   const token = await new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('30d')
-    .sign(JWT_SECRET);
+    .sign(getJwtSecret());
 
   return token;
 };
@@ -28,7 +37,7 @@ export const verifyToken = async (token: string): Promise<JWTPayload | null> => 
   }
 
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, getJwtSecret());
 
     if (!payload.userId || !payload.role) {
       return null;

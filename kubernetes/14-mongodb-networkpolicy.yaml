@@ -1,0 +1,30 @@
+# Restricts MongoDB (port 27017) to only the app and migration pods —
+# previously any pod anywhere in the cluster could reach it.
+#
+# Note: this is only enforced if the cluster's CNI actually implements
+# NetworkPolicy (Calico, Cilium, or the AWS VPC CNI with its Network Policy
+# feature explicitly enabled). The default AWS VPC CNI does NOT enforce
+# NetworkPolicy out of the box — this manifest is a no-op (but harmless)
+# until one of those is in place.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mongodb-network-policy
+  namespace: easyshop
+spec:
+  podSelector:
+    matchLabels:
+      app: mongodb
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: easyshop
+        - podSelector:
+            matchLabels:
+              app: db-migration
+      ports:
+        - protocol: TCP
+          port: 27017

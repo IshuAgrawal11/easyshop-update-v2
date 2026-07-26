@@ -1,0 +1,24 @@
+# Mirrors mongo-init/init-mongo.sh (used by local Docker Compose) — creates
+# a least-privilege app user instead of having the app connect as root.
+# Reads credentials from process.env inside mongosh itself rather than
+# interpolating them into the script text, so a password containing shell
+# metacharacters or a quote can't break out into command/JS injection.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-init-scripts
+  namespace: easyshop
+data:
+  init-mongo.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    mongosh <<'EOF'
+    const username = process.env.MONGO_APP_USERNAME;
+    const password = process.env.MONGO_APP_PASSWORD;
+    db.getSiblingDB('easyshop').createUser({
+      user: username,
+      pwd: password,
+      roles: [{ role: 'readWrite', db: 'easyshop' }]
+    });
+    EOF

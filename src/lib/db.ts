@@ -9,12 +9,6 @@ declare global {
   var mongoose: MongooseCache | undefined;
 }
 
-if (!process.env.MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable inside .env');
-}
-
-const MONGODB_URI = process.env.MONGODB_URI;
-
 const cached: MongooseCache = (global.mongoose as MongooseCache) || {
   conn: null,
   promise: null,
@@ -29,12 +23,19 @@ async function dbConnect() {
     return cached.conn;
   }
 
+  // Checked lazily (on first real connection attempt) rather than at module
+  // load, so importing this module during the Next.js build doesn't require
+  // a real MONGODB_URI to exist.
+  if (!process.env.MONGODB_URI) {
+    throw new Error('Please define the MONGODB_URI environment variable inside .env');
+  }
+
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+    cached.promise = mongoose.connect(process.env.MONGODB_URI, opts).then((mongoose) => {
       return mongoose;
     });
   }

@@ -1,0 +1,13 @@
+# Without this, a node drain or cluster-autoscaler scale-down is free to
+# evict all replicas at once (HPA's min is 2, but nothing stops both from
+# being evicted concurrently), causing a brief full outage.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: easyshop-pdb
+  namespace: easyshop
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: easyshop

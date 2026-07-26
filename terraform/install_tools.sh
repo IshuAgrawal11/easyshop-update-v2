@@ -1,6 +1,10 @@
 #!/bin/bash
-# Exit immediately if any command fails
-set -e 
+# Exit immediately if any command fails. pipefail matters here specifically
+# because of the `wget | gpg | tee` pipelines below — without it, a failed
+# `wget` (network blip) wouldn't fail the pipeline, since the exit code
+# comes from the last command (`tee`), which "succeeds" even writing an
+# empty/corrupt keyring file.
+set -euo pipefail
 
 # Tell apt-get not to prompt for human input during installations
 export DEBIAN_FRONTEND=noninteractive

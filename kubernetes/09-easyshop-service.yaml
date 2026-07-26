@@ -1,13 +1,25 @@
+# type: LoadBalancer gives you a working AWS Classic ELB URL immediately —
+# no domain, no TLS cert, no ingress controller needed. Once you have a real
+# domain and deploy nginx-ingress-controller + cert-manager (kubernetes/10-
+# ingress.yaml + 00-cluster-issuer.yml), switch this back to ClusterIP so
+# the ingress controller's own LoadBalancer becomes the single entry point
+# instead of paying for two separate ELBs.
 apiVersion: v1
 kind: Service
 metadata:
   name: easyshop-service
   namespace: easyshop
+  annotations:
+    # Without this, the Classic ELB defaults to a raw TCP listener, which
+    # does NOT set X-Forwarded-For — every request would appear to come
+    # from "unknown" to src/lib/rateLimit.ts, collapsing login/register
+    # rate limiting into one shared bucket for every user (trivial DoS).
+    # HTTP listener mode makes the ELB set X-Forwarded-For correctly.
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
     - port: 80
       targetPort: 3000
-      nodePort: 30000
   selector:
     app: easyshop

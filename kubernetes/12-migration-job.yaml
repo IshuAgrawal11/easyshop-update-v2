@@ -5,14 +5,21 @@ metadata:
   namespace: easyshop
 spec:
   template:
+    metadata:
+      labels:
+        app: db-migration
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: migration
         image: ishu11/e-shop-migration:latest
         imagePullPolicy: Always
         env:
         - name: MONGODB_URI
-          value: "mongodb://mongodb-service:27017/easyshop"
+          valueFrom:
+            secretKeyRef:
+              name: easyshop-secrets
+              key: MONGODB_URI
         - name: CDN_URL
           valueFrom:
             configMapKeyRef:

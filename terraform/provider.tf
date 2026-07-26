@@ -1,20 +1,25 @@
-locals {
+terraform {
+  required_version = ">= 1.11.0"
 
-  region          = "eu-north-1"
-  name            = "my-eks-cluster"
-  vpc_cidr        = "10.0.0.0/16"
-  azs             = ["eu-north-1a", "eu-north-1b"]
-  public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
-  private_subnets = ["10.0.3.0/24", "10.0.4.0/24"]
-  intra_subnets   = ["10.0.5.0/24", "10.0.6.0/24"]
-  tags = {
-    example = local.name
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
+}
 
+locals {
+  tags = {
+    Project     = var.cluster_name
+    Environment = "production"
+  }
 }
 
 provider "aws" {
-
-  region = local.region
-
+  region = var.aws_region
 }

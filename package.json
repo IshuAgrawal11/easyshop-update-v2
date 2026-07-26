@@ -12,7 +12,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "migrate": "ts-node scripts/migrate-data.ts"
+    "migrate": "ts-node scripts/migrate-data.ts",
+    "postinstall": "node -e \"const fs=require('fs');for(const p of ['node_modules/next/node_modules/sharp','node_modules/next/node_modules/postcss']){try{fs.rmSync(p,{recursive:true,force:true})}catch(e){}}\""
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -32,7 +33,6 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^11.18.2",
     "jose": "^5.10.0",
-    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.577.0",
     "mongoose": "^8.24.1",
     "next": "15.5.22",
@@ -42,7 +42,7 @@
     "react-hook-form": "^7.83.0",
     "react-icons": "^5.7.0",
     "react-redux": "^9.3.0",
-    "sharp": "^0.33.5",
+    "sharp": "^0.35.3",
     "tailwind-merge": "^2.6.1",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.25.76"
@@ -50,7 +50,6 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",
     "@types/bcryptjs": "^2.4.6",
-    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.20.1",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
@@ -64,5 +63,16 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"
+  },
+  "overrides": {
+    "sharp": "^0.35.3",
+    "form-data": "^4.0.6",
+    "postcss": "^8.5.23",
+    "picomatch": "^4.0.5",
+    "brace-expansion": "^5.0.8",
+    "next": {
+      "sharp": "^0.35.3",
+      "postcss": "^8.5.23"
+    }
   }
 }

@@ -13,6 +13,9 @@ spec:
       labels:
         app: easyshop
     spec:
+      # This pod never talks to the Kubernetes API — no need for the
+      # default ServiceAccount token to be mounted into it.
+      automountServiceAccountToken: false
       containers:
         - name: easyshop
           image: ishu11/e-shop-app:latest

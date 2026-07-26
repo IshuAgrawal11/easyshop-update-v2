@@ -14,14 +14,41 @@ spec:
       labels:
         app: mongodb
     spec:
+      # This pod never talks to the Kubernetes API — no need for the
+      # default ServiceAccount token to be mounted into it.
+      automountServiceAccountToken: false
       containers:
         - name: mongodb
           image: mongo:6.0.14
           ports:
             - containerPort: 27017
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: easyshop-config
+                  key: MONGO_INITDB_ROOT_USERNAME
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: easyshop-secrets
+                  key: MONGO_INITDB_ROOT_PASSWORD
+            - name: MONGO_APP_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: easyshop-config
+                  key: MONGO_APP_USERNAME
+            - name: MONGO_APP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: easyshop-secrets
+                  key: MONGO_APP_PASSWORD
           volumeMounts:
             - name: mongodb-storage
               mountPath: /data/db
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
           resources:
             requests:
               memory: "256Mi"
@@ -33,3 +60,7 @@ spec:
         - name: mongodb-storage
           persistentVolumeClaim:
             claimName: mongodb-pvc
+        - name: init-scripts
+          configMap:
+            name: mongodb-init-scripts
+            defaultMode: 0555

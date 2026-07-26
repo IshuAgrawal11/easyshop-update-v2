@@ -63,4 +63,9 @@ const productSchema = new mongoose.Schema({
   _id: false
 });
 
+// GET /api/products filters/sorts on all three of these.
+productSchema.index({ shop_category: 1 });
+productSchema.index({ categories: 1 });
+productSchema.index({ price: 1 });
+
 export default mongoose.models.Product || mongoose.model('Product', productSchema);

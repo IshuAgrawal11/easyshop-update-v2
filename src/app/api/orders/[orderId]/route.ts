@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import dbConnect from '@/lib/db';
 import Order from '@/lib/models/order';
 import { requireAuth } from '@/lib/auth/utils';
+
+const updateStatusSchema = z.object({
+  status: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled']),
+});
 
 // Get single order
 export async function GET(
@@ -50,13 +55,16 @@ export async function PUT(
 
     await dbConnect();
     const { orderId } = await params;
-    const body = await request.json();
-    const { status } = body;
+
+    const parsed = updateStatusSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
 
     const order = await Order.findByIdAndUpdate(
       orderId,
-      { status },
-      { new: true }
+      { status: parsed.data.status },
+      { new: true, runValidators: true }
     ).populate('items.product', 'title price image');
 
     if (!order) {

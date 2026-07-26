@@ -5,7 +5,11 @@ metadata:
   namespace: easyshop
 data:
   CDN_URL: "https://d2oetz2exrp1li.cloudfront.net"
-  MONGODB_URI: "mongodb://mongodb-service:27017/easyshop"
   NODE_ENV: "production"
   NEXT_PUBLIC_API_URL: "https://13.49.27.153.nip.io/api"
   NEXTAUTH_URL: "https://13.49.27.153.nip.io/"
+  # Usernames only (non-sensitive) — passwords and the full MONGODB_URI
+  # connection string live in 05-secrets.yaml, since MongoDB now requires
+  # authentication on EKS just like it already does in local Docker Compose.
+  MONGO_INITDB_ROOT_USERNAME: "root"
+  MONGO_APP_USERNAME: "easyshop_app"

@@ -11,9 +11,9 @@ export async function createCookies(token: string) {
   cookies().set({
     name: "token",
     value: token,
-    httpOnly: false, // Allow client-side access
-    secure: false, // Set to false for HTTP on EC2
-    sameSite: "lax",
+    httpOnly: true, // Allow client-side access
+    secure: true, // Set to false for HTTP on EC2
+    sameSite: "strict",
     path: "/",
     domain: url.hostname === 'localhost' ? 'localhost' : undefined, // Let browser set domain for EC2
     maxAge: 30 * 24 * 60 * 60, // 30 days

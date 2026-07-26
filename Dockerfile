@@ -1,48 +1,49 @@
-FROM node:18-alpine AS builder
-
+# ==========================================
+# Stage 1: Install Cached Dependencies
+# ==========================================
+FROM node:18-alpine AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Disable Next.js telemetry during the build
-ENV NEXT_TELEMETRY_DISABLED=1
-
-# Install necessary build dependencies
-RUN apk add --no-cache python3 make g++ libc6-compat
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
+# Only copy lock files to optimize Docker layer cache
+COPY package.json package-lock.json ./
 RUN npm ci
 
-# Copy all project files
+# ==========================================
+# Stage 2: Next.js Standalone Builder
+# ==========================================
+FROM node:18-alpine AS builder
+WORKDIR /app
+
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the Next.js application
+# Leverage standalone output optimization defined in your next.config.js
 RUN npm run build
 
 # ==========================================
-# Stage 2: Production Stage
+# Stage 3: Hardened Production Runner
 # ==========================================
 FROM node:18-alpine AS runner
-
 WORKDIR /app
 
-# Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
-# Disable telemetry during runtime
 ENV NEXT_TELEMETRY_DISABLED=1 
 
-# Copy necessary files from builder stage and assign ownership to the 'node' user
-COPY --from=builder --chown=node:node /app/public ./public
-COPY --from=builder --chown=node:node /app/.next/standalone ./
-COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+# Create secure system groups and users to stop container runtime exploits
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
-# Switch to the restricted 'node' user for security
-USER node
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Expose the port the app runs on
+USER nextjs
 EXPOSE 3000
+ENV HOST=0.0.0.0
 
-# Command to run the application
 CMD ["node", "server.js"]

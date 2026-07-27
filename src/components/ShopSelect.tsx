@@ -19,27 +19,32 @@ type ShopOption = {
   icon: string;
 };
 
+const PLACEHOLDER: ShopOption = { title: "Select Shop", icon: "" };
+
+// The active shop is derived from the URL (/shops/<title>), not tracked as
+// its own source of truth — so browser back/forward and direct links land
+// on the right dropdown state without an effect re-navigating on mount.
+function shopFromPathname(pathname: string): ShopOption {
+  const slug = pathname.split("/")[2];
+  return shops.find((s) => s.title === slug) || PLACEHOLDER;
+}
+
 const ShopSelect = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [selectedShop, setSelectedShop] = useState<ShopOption>({
-    title: "Select Shop",
-    icon: "",
-  });
+  const [selectedShop, setSelectedShop] = useState<ShopOption>(() =>
+    shopFromPathname(pathname)
+  );
+
+  useEffect(() => {
+    setSelectedShop(shopFromPathname(pathname));
+  }, [pathname]);
 
   const handleSelectShop = useCallback((shop?: string) => {
     if (shop) {
-      const foundShop = shops.find((s) => s.title === shop);
-      setSelectedShop(foundShop || { title: "Select Shop", icon: "" });
       router.push(`/shops/${shop}`);
     }
   }, [router]);
-
-  useEffect(() => {
-    if (selectedShop) {
-      handleSelectShop(selectedShop.title);
-    }
-  }, [selectedShop, handleSelectShop]);
 
   return (
     <DropdownMenu modal={false}>

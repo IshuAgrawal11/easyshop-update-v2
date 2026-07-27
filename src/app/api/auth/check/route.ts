@@ -5,14 +5,9 @@ import dbConnect from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('Checking authentication status');
-    // Log headers for debugging
-    console.log('Request headers:', Object.fromEntries(request.headers.entries()));
-    
     const auth = await isAuthenticated(request);
-    
+
     if (!auth || !auth.userId) {
-      console.log('No valid authentication found');
       // Add CORS headers for the error response
       const response = NextResponse.json({ authenticated: false }, { status: 401 });
       response.headers.set('Access-Control-Allow-Origin', '*');

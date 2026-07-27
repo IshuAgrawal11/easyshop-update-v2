@@ -7,8 +7,8 @@ resource "aws_security_group" "bastion_security_group" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "SSH access"
+    cidr_blocks = var.admin_cidr
+    description = "SSH access (restricted to admin_cidr)"
   }
 
   egress {
@@ -43,31 +43,17 @@ resource "aws_security_group" "bastion_security_group" {
     description = "All other outbound traffic"
   }
 
-  // Add Jenkins port
+  // Jenkins UI - restricted to admin_cidr, not the whole internet
   ingress {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Jenkins access"
+    cidr_blocks = var.admin_cidr
+    description = "Jenkins access (restricted to admin_cidr)"
   }
 
-  // Add HTTP/HTTPS ports for web access
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "HTTP access"
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "HTTPS access"
-  }
+  // Note: no 80/443 ingress here - the app is served via the EKS ingress
+  // controller/load balancer, not directly from this bastion instance.
 
   tags = merge(
     var.tags,

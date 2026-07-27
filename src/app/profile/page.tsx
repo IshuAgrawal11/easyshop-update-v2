@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 const ProfilePage = async () => {
   // Get the token from cookies
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
 
   // If no token, redirect to login
@@ -22,7 +22,7 @@ const ProfilePage = async () => {
   }
 
   // Verify the token
-  const decoded = verifyToken(token);
+  const decoded = await verifyToken(token);
   if (!decoded) {
     redirect("/login?redirect=/profile");
   }

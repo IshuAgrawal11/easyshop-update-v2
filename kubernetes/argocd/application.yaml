@@ -4,10 +4,11 @@ metadata:
   name: easyshop
   namespace: argocd
 spec:
-  project: default
+  project: easyshop
   source:
-    repoURL: https://github.com/iemafzalhassan/EasyShop-KIND.git
-    targetRevision: tf-DevOps
+    # TODO: point at your own fork/repo before applying.
+    repoURL: https://github.com/<YOUR_GITHUB_ORG>/<YOUR_REPO>.git
+    targetRevision: main
     path: kubernetes
   destination:
     server: https://kubernetes.default.svc

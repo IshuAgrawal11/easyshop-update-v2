@@ -1,0 +1,5 @@
+# Copy to terraform.tfvars and fill in with your own values before running terraform apply.
+
+# Restrict this to your actual IP/office/VPN CIDR - e.g. ["203.0.113.10/32"].
+# Never set this to ["0.0.0.0/0"].
+admin_cidr = ["YOUR_IP_ADDRESS/32"]

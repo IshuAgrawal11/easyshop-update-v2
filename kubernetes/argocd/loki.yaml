@@ -1,0 +1,68 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+spec:
+  project: easyshop
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    targetRevision: 7.1.0
+    helm:
+      values: |
+        deploymentMode: SingleBinary
+
+        loki:
+          auth_enabled: false
+          commonConfig:
+            replication_factor: 1
+          storage:
+            type: filesystem
+          # Sanctioned "simple/testing" schema path for single-binary +
+          # filesystem storage - avoids hand-writing a full schemaConfig.
+          useTestSchema: true
+
+        singleBinary:
+          replicas: 1
+          persistence:
+            enabled: true
+            size: 10Gi
+            storageClass: gp3
+
+        # Not needed in SingleBinary mode.
+        read:
+          replicas: 0
+        write:
+          replicas: 0
+        backend:
+          replicas: 0
+
+        monitoring:
+          serviceMonitor:
+            enabled: true
+            labels:
+              release: argocd-monitoring
+          dashboards:
+            enabled: true
+            labels:
+              grafana_dashboard: "1"
+          selfMonitoring:
+            enabled: false
+          lokiCanary:
+            enabled: true
+
+        test:
+          enabled: false
+
+        gateway:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

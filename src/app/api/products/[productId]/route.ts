@@ -3,21 +3,24 @@ import dbConnect from '@/lib/db';
 import Product from '@/lib/models/product';
 import { requireAuth } from '@/lib/auth/utils';
 import { ProductCache } from '@/lib/redis/productCache';
+import { productInputSchema } from '@/lib/validation/products';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { productId: string } }
+  { params }: { params: Promise<{ productId: string }> }
 ) {
   try {
+    const { productId } = await params;
+
     // Try cache first
-    const cachedProduct = await ProductCache.getProduct(params.productId);
+    const cachedProduct = await ProductCache.getProduct(productId);
     if (cachedProduct) {
       return NextResponse.json(cachedProduct);
     }
 
     // If not in cache, get from DB
     await dbConnect();
-    const product = await Product.findOne({ originalId: params.productId });
+    const product = await Product.findOne({ originalId: productId });
     
     if (!product) {
       return NextResponse.json(
@@ -39,32 +42,10 @@ export async function GET(
   }
 }
 
-// Create single product
+// Create single product (admin only)
 export async function POST(
   request: NextRequest,
-  { params }: { params: { productId: string } }
-) {
-  try {
-    await dbConnect();
-    
-    const body = await request.json();
-    
-    const product = await Product.create(body);
-    
-    return NextResponse.json(product);
-  } catch (error: any) {
-    console.error('Product error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Internal Server Error' },
-      { status: 500 }
-    );
-  }
-}
-
-// Update product (admin only)
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { productId: string } }
+  { params }: { params: Promise<{ productId: string }> }
 ) {
   try {
     const auth = await requireAuth(request);
@@ -74,12 +55,50 @@ export async function PUT(
         { status: 403 }
       );
     }
-    
+
+    await dbConnect();
+
+    const body = await request.json();
+    const parsed = productInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid product payload', issues: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    const product = await Product.create(parsed.data);
+
+    return NextResponse.json(product);
+  } catch (error: any) {
+    console.error('Product error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Internal Server Error' },
+      { status: error.message === 'Authentication required' ? 401 : 500 }
+    );
+  }
+}
+
+// Update product (admin only)
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ productId: string }> }
+) {
+  try {
+    const auth = await requireAuth(request);
+    if (auth.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 403 }
+      );
+    }
+
+    const { productId } = await params;
     await dbConnect();
     const body = await request.json();
-    
+
     const product = await Product.findOneAndUpdate(
-      { originalId: params.productId },
+      { originalId: productId },
       body,
       { new: true, runValidators: true }
     );
@@ -103,7 +122,7 @@ export async function PUT(
 // Delete product (admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { productId: string } }
+  { params }: { params: Promise<{ productId: string }> }
 ) {
   try {
     const auth = await requireAuth(request);
@@ -113,10 +132,11 @@ export async function DELETE(
         { status: 403 }
       );
     }
-    
+
+    const { productId } = await params;
     await dbConnect();
-    
-    const product = await Product.findOneAndDelete({ originalId: params.productId });
+
+    const product = await Product.findOneAndDelete({ originalId: productId });
     if (!product) {
       return NextResponse.json(
         { error: 'Product not found' },

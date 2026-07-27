@@ -2,17 +2,18 @@ import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/db';
 import Product from '@/lib/models/product';
 import { requireAuth } from '@/lib/auth/utils';
+import { SORTABLE_FIELDS, productInputSchema, escapeRegex } from '@/lib/validation/products';
 
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
-    
+
     const { searchParams } = new URL(request.url);
     const query: any = {};
-    
+
     // Search by title or description
     if (searchParams.has('search')) {
-      const searchRegex = new RegExp(searchParams.get('search') as string, 'i');
+      const searchRegex = new RegExp(escapeRegex(searchParams.get('search') as string), 'i');
       query.$or = [
         { title: searchRegex },
         { description: searchRegex }
@@ -31,13 +32,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter by price range
-    if (searchParams.has('minPrice') || searchParams.has('maxPrice')) {
+    // (minPrice/maxPrice may be present but empty - e.g. ProductGrid always
+    // sends them - so only apply a bound once it parses to a real number.)
+    const minPrice = parseFloat(searchParams.get('minPrice') || '');
+    const maxPrice = parseFloat(searchParams.get('maxPrice') || '');
+    if (!Number.isNaN(minPrice) || !Number.isNaN(maxPrice)) {
       query.price = {};
-      if (searchParams.has('minPrice')) {
-        query.price.$gte = parseFloat(searchParams.get('minPrice') as string);
+      if (!Number.isNaN(minPrice)) {
+        query.price.$gte = minPrice;
       }
-      if (searchParams.has('maxPrice')) {
-        query.price.$lte = parseFloat(searchParams.get('maxPrice') as string);
+      if (!Number.isNaN(maxPrice)) {
+        query.price.$lte = maxPrice;
       }
     }
 
@@ -50,7 +55,9 @@ export async function GET(request: NextRequest) {
     let sort: any = { createdAt: -1 };
     if (searchParams.has('sort')) {
       const [field, order] = (searchParams.get('sort') as string).split(':');
-      sort = { [field]: order === 'desc' ? -1 : 1 };
+      if (SORTABLE_FIELDS.has(field)) {
+        sort = { [field]: order === 'desc' ? -1 : 1 };
+      }
     }
 
     const products = await Product.find(query)
@@ -91,7 +98,15 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     const body = await request.json();
-    const product = await Product.create(body);
+    const parsed = productInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid product payload', issues: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    const product = await Product.create(parsed.data);
 
     return NextResponse.json(product, { status: 201 });
   } catch (error: any) {

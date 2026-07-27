@@ -51,20 +51,21 @@ output "access_information" {
   description = "Access information for the infrastructure"
   value = {
     bastion = {
-      public_ip = module.bastion.bastion_public_ip
-      ssh_command = "ssh -i ${module.bastion.bastion_key_path} ubuntu@${module.bastion.bastion_public_ip}"
-      scp_command = "scp -i ${module.bastion.bastion_key_path} modules/bastion/install-tools.sh ubuntu@${module.bastion.bastion_public_ip}:~/install-tools.sh"
-      post_install = "After copying the script, run: chmod +x ~/install-tools.sh && ./install-tools.sh"
+      public_ip            = module.bastion.bastion_public_ip
+      retrieve_key_command = module.bastion.retrieve_key_command
+      ssh_command          = "ssh -i bastion_key.pem ubuntu@${module.bastion.bastion_public_ip}"
+      scp_command          = "scp -i bastion_key.pem modules/bastion/install-tools.sh ubuntu@${module.bastion.bastion_public_ip}:~/install-tools.sh"
+      post_install         = "After copying the script, run: chmod +x ~/install-tools.sh && ./install-tools.sh"
     }
     eks = {
-      cluster_name = local.cluster_name
-      endpoint = module.eks.cluster_endpoint
+      cluster_name   = local.cluster_name
+      endpoint       = module.eks.cluster_endpoint
       kubeconfig_cmd = "aws eks update-kubeconfig --region ${local.region} --name ${local.cluster_name}"
     }
     vpc = {
-      id = module.vpc.vpc_id
-      cidr = local.vpc_cidr
-      public_subnets = module.vpc.public_subnets
+      id              = module.vpc.vpc_id
+      cidr            = local.vpc_cidr
+      public_subnets  = module.vpc.public_subnets
       private_subnets = module.vpc.private_subnets
     }
   }
@@ -85,11 +86,11 @@ output "service_urls" {
 output "important_commands" {
   description = "Important commands for managing the infrastructure"
   value = {
-    get_nodes          = "kubectl get nodes"
-    get_pods           = "kubectl get pods -A"
-    get_services       = "kubectl get services -A"
-    get_ingress        = "kubectl get ingress -A"
+    get_nodes           = "kubectl get nodes"
+    get_pods            = "kubectl get pods -A"
+    get_services        = "kubectl get services -A"
+    get_ingress         = "kubectl get ingress -A"
     get_argocd_password = "kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
-    get_loadbalancer   = "kubectl get service -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
+    get_loadbalancer    = "kubectl get service -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
   }
 } 

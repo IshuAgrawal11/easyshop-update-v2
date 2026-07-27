@@ -8,18 +8,13 @@ variable "vpc_id" {
   type        = string
 }
 
-variable "vpc_cidr" {
-  description = "CIDR block of the VPC"
-  type        = string
-}
-
 variable "tags" {
   description = "A map of tags to add to all resources"
   type        = map(string)
   default     = {}
 }
 
-variable "environment" {
-  description = "Environment name"
-  type        = string
+variable "admin_cidr" {
+  description = "CIDR blocks allowed to reach admin ports (SSH, Jenkins UI) on the bastion"
+  type        = list(string)
 }

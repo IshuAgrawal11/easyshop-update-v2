@@ -15,10 +15,35 @@ resource "aws_iam_role" "bastion" {
   })
 }
 
-# Attach policies to bastion role
+# Minimal policy for the bastion to run `aws eks update-kubeconfig` / describe the
+# cluster. AmazonEKSClusterPolicy is meant for the EKS service role, not a kubectl
+# client instance, and grants far more than this box needs - actual in-cluster
+# authorization happens via the aws-auth ConfigMap, not this IAM policy.
+resource "aws_iam_policy" "bastion_eks_describe" {
+  name        = "${local.tags.Name}-bastion-eks-describe"
+  description = "Minimal EKS read access for the bastion to fetch cluster kubeconfig"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["eks:DescribeCluster", "eks:ListClusters"]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "bastion_eks" {
   role       = aws_iam_role.bastion.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  policy_arn = aws_iam_policy.bastion_eks_describe.arn
+}
+
+# Defense-in-depth: allow SSM Session Manager access to the bastion in addition
+# to the CIDR-restricted SSH ingress.
+resource "aws_iam_role_policy_attachment" "bastion_ssm" {
+  role       = aws_iam_role.bastion.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 # Create instance profile for bastion
@@ -28,7 +53,7 @@ resource "aws_iam_instance_profile" "bastion" {
 }
 
 module "vpc" {
-  source = "./modules/vpc"
+  source          = "./modules/vpc"
   vpc_name        = local.vpc_name
   vpc_cidr        = local.vpc_cidr
   azs             = local.azs
@@ -39,16 +64,21 @@ module "vpc" {
 }
 
 module "security_group" {
-  source = "./modules/security_group"
-  name        = local.sg_name
-  vpc_id      = module.vpc.vpc_id
-  vpc_cidr    = local.vpc_cidr
-  tags        = local.tags
-  environment = local.environment
+  source     = "./modules/security_group"
+  name       = local.sg_name
+  vpc_id     = module.vpc.vpc_id
+  tags       = local.tags
+  admin_cidr = var.admin_cidr
+}
+
+resource "aws_kms_key" "eks" {
+  description         = "KMS key for EKS secrets envelope encryption"
+  enable_key_rotation = true
+  tags                = local.tags
 }
 
 module "eks" {
-  source = "./modules/eks"
+  source                    = "./modules/eks"
   cluster_name              = local.cluster_name
   cluster_version           = local.cluster_version
   environment               = local.environment
@@ -56,8 +86,10 @@ module "eks" {
   subnet_ids                = module.vpc.public_subnets
   control_plane_subnet_ids  = module.vpc.private_subnets
   bastion_security_group_id = module.security_group.bastion_security_group_id
-  eks_addon_versions = local.eks_addon_versions
-  tags = local.tags
+  eks_addon_versions        = local.eks_addon_versions
+  admin_cidr                = var.admin_cidr
+  kms_key_arn               = aws_kms_key.eks.arn
+  tags                      = local.tags
 }
 
 module "bastion" {

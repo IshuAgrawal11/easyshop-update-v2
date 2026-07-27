@@ -10,6 +10,16 @@ terraform {
     }
   }
   required_version = ">= 1.0.0"
+
+  # Remote state with locking - fill in your own bucket/table (account-specific,
+  # cannot be hardcoded here) and run `terraform init` to migrate from local state.
+  # backend "s3" {
+  #   bucket         = "YOUR_TERRAFORM_STATE_BUCKET"
+  #   key            = "easyshop/terraform.tfstate"
+  #   region         = "us-east-2"
+  #   dynamodb_table = "YOUR_TERRAFORM_LOCK_TABLE"
+  #   encrypt        = true
+  # }
 }
 
 provider "aws" {

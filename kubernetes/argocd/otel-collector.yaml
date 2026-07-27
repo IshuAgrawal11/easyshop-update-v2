@@ -1,0 +1,112 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-collector
+  namespace: argocd
+spec:
+  project: easyshop
+  source:
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    targetRevision: 0.165.0
+    helm:
+      values: |
+        mode: deployment
+        replicaCount: 1
+
+        # The span_metrics connector (RED metrics from trace spans) is a
+        # contrib-only component, not in the minimal core distribution.
+        image:
+          repository: otel/opentelemetry-collector-contrib
+        command:
+          name: otelcol-contrib
+
+        ports:
+          otlp:
+            enabled: true
+          otlp-http:
+            enabled: true
+          jaeger-compact:
+            enabled: false
+          jaeger-thrift:
+            enabled: false
+          jaeger-grpc:
+            enabled: false
+          zipkin:
+            enabled: false
+          # Required for the ServiceMonitor to scrape the collector's own
+          # internal telemetry.
+          metrics:
+            enabled: true
+          # Custom port for the `prometheus` exporter (span_metrics-derived
+          # RED metrics), not part of the chart's default port list.
+          prom-exporter:
+            enabled: true
+            containerPort: 8889
+            servicePort: 8889
+            protocol: TCP
+
+        config:
+          receivers:
+            jaeger: null
+            zipkin: null
+            # Removed: the collector's own metrics are already exposed via
+            # service.telemetry.metrics (scraped by the ServiceMonitor on the
+            # "metrics" port) - this receiver would otherwise be defined but
+            # unreferenced by any pipeline, which fails collector startup
+            # validation.
+            prometheus: null
+            otlp:
+              protocols:
+                grpc:
+                  endpoint: ${env:MY_POD_IP}:4317
+                http:
+                  endpoint: ${env:MY_POD_IP}:4318
+
+          connectors:
+            span_metrics:
+              histogram:
+                explicit:
+                  buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2.5s, 5s]
+              dimensions:
+                - name: http.method
+                - name: http.status_code
+              metrics_flush_interval: 15s
+
+          exporters:
+            debug: null
+            otlp/jaeger:
+              endpoint: jaeger.observability.svc.cluster.local:4317
+              tls:
+                insecure: true
+            prometheus:
+              endpoint: ${env:MY_POD_IP}:8889
+
+          service:
+            pipelines:
+              traces:
+                receivers: [otlp]
+                processors: [memory_limiter, batch]
+                exporters: [otlp/jaeger, span_metrics]
+              metrics:
+                receivers: [otlp, span_metrics]
+                processors: [memory_limiter, batch]
+                exporters: [prometheus]
+              logs: null
+
+        serviceMonitor:
+          enabled: true
+          metricsEndpoints:
+            - port: metrics
+            - port: prom-exporter
+          extraLabels:
+            release: argocd-monitoring
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

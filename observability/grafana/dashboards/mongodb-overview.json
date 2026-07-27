@@ -1,0 +1,106 @@
+{
+  "id": null,
+  "uid": "mongodb-overview",
+  "title": "MongoDB Overview",
+  "description": "MongoDB server metrics via mongodb_exporter's server-status (mongodb_ss_*) metrics - hand-built against this project's actual exporter version, since most grafana.com community MongoDB dashboards target an older/different exporter metric schema.",
+  "tags": ["easyshop", "mongodb", "database"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "MongoDB Up",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "mongodb_up" }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ]
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Uptime",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "mongodb_ss_uptime" }],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Current Connections",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "mongodb_ss_connections{conn_type=\"current\"}" }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Available Connections",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "mongodb_ss_connections{conn_type=\"available\"}" }]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Operations Rate by Type",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(mongodb_ss_opcounters[1m])",
+          "legendFormat": "{{legacy_op_type}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Memory Usage",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "mongodb_ss_mem_resident", "legendFormat": "resident (MB)" },
+        { "expr": "mongodb_ss_mem_virtual", "legendFormat": "virtual (MB)" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "decmbytes" }, "overrides": [] }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Network Traffic",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "rate(mongodb_ss_network_bytesIn[1m])", "legendFormat": "in" },
+        { "expr": "rate(mongodb_ss_network_bytesOut[1m])", "legendFormat": "out" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Assertions (errors)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(mongodb_ss_asserts[1m])",
+          "legendFormat": "{{assert_type}}"
+        }
+      ]
+    }
+  ]
+}

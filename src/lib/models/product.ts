@@ -1,6 +1,13 @@
 import mongoose from 'mongoose';
 
 const productSchema = new mongoose.Schema({
+  // Seeded/migrated data uses padded numeric strings (e.g. "0000000028") as
+  // the id, not real ObjectIds. Without this override, Mongoose defaults _id
+  // to ObjectId, fails to cast the string on document hydration, and quietly
+  // drops _id (becomes undefined) from every find()/findOne() result.
+  _id: {
+    type: String
+  },
   originalId: {
     type: String,
     required: true,
@@ -53,7 +60,8 @@ const productSchema = new mongoose.Schema({
     type: String 
   }]
 }, {
-  timestamps: true
+  timestamps: true,
+  _id: false
 });
 
 export default mongoose.models.Product || mongoose.model('Product', productSchema);

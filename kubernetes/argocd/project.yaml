@@ -7,12 +7,25 @@ spec:
   description: EasyShop E-Commerce Application
   
   # Project sources
+  # TODO: point at your own fork/repo before applying.
   sourceRepos:
-  - https://github.com/iemafzalhassan/EasyShop-KIND
-  
+  - https://github.com/<YOUR_GITHUB_ORG>/<YOUR_REPO>
+  # Observability stack Helm chart repos (jaeger.yaml, loki.yaml, alloy.yaml,
+  # otel-collector.yaml, monitoring.yaml) - all Applications in this repo
+  # share this one AppProject rather than falling back to the permissive
+  # built-in "default" project.
+  - https://jaegertracing.github.io/helm-charts
+  - https://grafana.github.io/helm-charts
+  - https://open-telemetry.github.io/opentelemetry-helm-charts
+  - https://prometheus-community.github.io/helm-charts
+
   # Destination clusters and namespaces
   destinations:
   - namespace: easyshop
+    server: https://kubernetes.default.svc
+  - namespace: observability
+    server: https://kubernetes.default.svc
+  - namespace: monitoring
     server: https://kubernetes.default.svc
   
   # Allowed resource kinds

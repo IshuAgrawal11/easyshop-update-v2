@@ -2,9 +2,16 @@ import { NextRequest } from 'next/server';
 import { jwtVerify, SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'your-jwt-secret-key'
-);
+let cachedSecret: Uint8Array | null = null;
+
+function getJwtSecret(): Uint8Array {
+  if (cachedSecret) return cachedSecret;
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  cachedSecret = new TextEncoder().encode(process.env.JWT_SECRET);
+  return cachedSecret;
+}
 
 export interface JWTPayload {
   userId: string;
@@ -17,7 +24,7 @@ export const generateToken = async (payload: JWTPayload): Promise<string> => {
     const token = await new SignJWT(payload)
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime('30d')
-      .sign(JWT_SECRET);
+      .sign(getJwtSecret());
     
     return token;
   } catch (error) {
@@ -33,12 +40,10 @@ export const verifyToken = async (token: string): Promise<JWTPayload | null> => 
   }
 
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    console.log('Token verified successfully:', payload);
-    
+    const { payload } = await jwtVerify(token, getJwtSecret());
+
     // Verify the token has the required fields
     if (!payload.userId || !payload.role) {
-      console.error('Token missing required fields:', payload);
       return null;
     }
 
@@ -67,14 +72,7 @@ export function getTokenFromRequest(request: NextRequest): string | null {
   if (tokenFromCookie) {
     return tokenFromCookie;
   }
-  
-  // Try to get token from query parameter (not recommended for production)
-  const url = new URL(request.url);
-  const tokenFromQuery = url.searchParams.get('token');
-  if (tokenFromQuery) {
-    return tokenFromQuery;
-  }
-  
+
   return null;
 }
 

@@ -1,0 +1,13 @@
+{
+  "name": "easyshop-migration",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "mongoose": "^9.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

@@ -66,12 +66,19 @@ export async function POST(request: NextRequest) {
       token,
     });
 
-    // Set cookie
+    // Set cookie - derive `secure` from the actual request protocol, not
+    // NODE_ENV, since this app can also be deployed over plain HTTP directly
+    // to an EC2 IP; forcing Secure without HTTPS would make browsers drop
+    // the cookie entirely.
+    const isHttps =
+      request.nextUrl.protocol === "https:" ||
+      request.headers.get("x-forwarded-proto") === "https";
+
     response.cookies.set({
       name: "token",
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isHttps,
       sameSite: "strict",
       path: "/",
     });

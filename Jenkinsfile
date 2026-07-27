@@ -2,7 +2,7 @@
 
 pipeline {
     agent any
-    
+
     environment {
         // Update the main app image name to match the deployment file
         DOCKER_IMAGE_NAME = 'iemafzal/easyshop-app'
@@ -11,8 +11,10 @@ pipeline {
         AWS_CREDENTIALS = credentials('aws-credentials')
         GITHUB_CREDENTIALS = credentials('github-credentials')
         GIT_BRANCH = "tf-DevOps"
+        // Fill in with your team's notification address(es) before use.
+        NOTIFY_EMAIL = 'team@example.com'
     }
-    
+
     stages {
         stage('Check for CI Skip') {
             steps {
@@ -27,7 +29,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Cleanup Workspace') {
             steps {
                 script {
@@ -35,7 +37,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Clone Repository') {
             steps {
                 script {
@@ -43,7 +45,91 @@ pipeline {
                 }
             }
         }
-        
+
+        stage('Install Dependencies & Run Tests') {
+            steps {
+                sh 'npm ci'
+                sh 'npm run lint'
+                sh 'npm test -- --ci --coverage'
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: 'junit.xml'
+                    archiveArtifacts artifacts: 'coverage/**', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('OWASP Dependency-Check') {
+            steps {
+                sh 'mkdir -p dependency-check-report'
+                sh '''
+                    docker run --rm \
+                      -v "$WORKSPACE":/src \
+                      -v dependency-check-data:/usr/share/dependency-check/data \
+                      owasp/dependency-check:latest \
+                      --scan /src \
+                      --format ALL \
+                      --out /src/dependency-check-report \
+                      --project EasyShop \
+                      --exclude "**/node_modules/**" \
+                      --exclude "**/.next/**" \
+                      --failOnCVSS 9
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'dependency-check-report/**', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                // Requires the SonarQube Scanner plugin and a server named
+                // "SonarQube" configured under Manage Jenkins > System > SonarQube servers.
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        docker run --rm \
+                          -e SONAR_HOST_URL="$SONAR_HOST_URL" \
+                          -e SONAR_TOKEN="$SONAR_AUTH_TOKEN" \
+                          -v "$WORKSPACE":/usr/src \
+                          sonarsource/sonar-scanner-cli
+                    '''
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                // Requires a webhook from the SonarQube server back to this
+                // Jenkins instance (Administration > Configuration > Webhooks).
+                timeout(time: 10, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('Trivy Filesystem Scan') {
+            steps {
+                sh 'mkdir -p trivy-results'
+                sh '''
+                    trivy fs \
+                      --severity HIGH,CRITICAL \
+                      --exit-code 1 \
+                      --format json \
+                      -o trivy-results/fs-scan.json \
+                      --ignoredirs node_modules,.next \
+                      .
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'trivy-results/fs-scan.json', allowEmptyArchive: true
+                }
+            }
+        }
+
         stage('Build Docker Images') {
             parallel {
                 stage('Build Main App Image') {
@@ -58,7 +144,7 @@ pipeline {
                         }
                     }
                 }
-                
+
                 stage('Build Migration Image') {
                     steps {
                         script {
@@ -73,21 +159,13 @@ pipeline {
                 }
             }
         }
-        
-        stage('Run Unit Tests') {
-            steps {
-                script {
-                    runUnitTests()
-                }
-            }
-        }
-        
+
         stage('Security Scan with Trivy') {
             steps {
                 script {
                     // Create directory for results
                     sh "mkdir -p trivy-results"
-                    
+
                     // Run scans sequentially to avoid conflicts
                     echo "Scanning main application image..."
                     trivyScan(
@@ -96,7 +174,7 @@ pipeline {
                         threshold: 150,
                         severity: 'HIGH,CRITICAL'
                     )
-                    
+
                     echo "Scanning migration image..."
                     trivyScan(
                         imageName: env.DOCKER_MIGRATION_IMAGE_NAME,
@@ -112,7 +190,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Push Docker Images') {
             parallel {
                 stage('Push Main App Image') {
@@ -126,7 +204,7 @@ pipeline {
                         }
                     }
                 }
-                
+
                 stage('Push Migration Image') {
                     steps {
                         script {
@@ -140,8 +218,7 @@ pipeline {
                 }
             }
         }
-        
-        // Add this new stage
+
         stage('Update Kubernetes Manifests') {
             steps {
                 script {
@@ -156,7 +233,7 @@ pipeline {
             }
         }
     }
-    
+
     post {
         always {
             script {
@@ -166,6 +243,20 @@ pipeline {
                     imageTag: env.DOCKER_IMAGE_TAG
                 )
             }
+        }
+        success {
+            emailext(
+                to: "${env.NOTIFY_EMAIL}",
+                subject: "SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Build succeeded: ${env.BUILD_URL}"
+            )
+        }
+        failure {
+            emailext(
+                to: "${env.NOTIFY_EMAIL}",
+                subject: "FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Build failed: ${env.BUILD_URL}console"
+            )
         }
     }
 }

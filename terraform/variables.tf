@@ -1,11 +1,18 @@
+variable "admin_cidr" {
+  description = "CIDR blocks allowed to reach admin ports (bastion SSH 22, Jenkins UI 8080, and the EKS public API endpoint). Set this to your own IP/office/VPN range - never leave it as 0.0.0.0/0."
+  type        = list(string)
+}
+
 locals {
 
-  region          = "us-east-2"
-  environment     = "dev"
+  region      = "us-east-2"
+  environment = "dev"
   tags = {
-    Name          = "easyshop"
-    Environment   = "dev"
-    Terraform     = "true"
+    Name        = "easyshop"
+    Environment = "dev"
+    Terraform   = "true"
+    Project     = "EasyShop"
+    ManagedBy   = "Terraform"
   }
 
   # VPC Variables
@@ -20,9 +27,9 @@ locals {
   cluster_name    = "easyshop-cluster"
   cluster_version = "1.29"
   eks_addon_versions = {
-    coredns = "v1.11.1-eksbuild.4"
-    kube-proxy = "v1.29.2-eksbuild.1"
-    vpc-cni = "v1.16.0-eksbuild.1"
+    coredns            = "v1.11.1-eksbuild.4"
+    kube-proxy         = "v1.29.2-eksbuild.1"
+    vpc-cni            = "v1.16.0-eksbuild.1"
     aws-ebs-csi-driver = "v1.29.0-eksbuild.1"
   }
 

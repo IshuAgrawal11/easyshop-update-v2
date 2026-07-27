@@ -4,7 +4,7 @@ kind: Kustomization
 resources:
 - 00-priority-class.yaml
 - 01-namespace.yaml
-- 02-mongodb-pv.yaml
+- 02-storageclass.yaml
 # 03-mongodb-pvc.yaml removed - PVC is created by StatefulSet
 - 04-configmap.yaml
 - 05-secrets.yaml
@@ -17,5 +17,6 @@ resources:
 - 12-migration-job.yaml
 - 13-redis-service.yaml
 - 14-redis-deployment.yaml
+- 15-db-exporters-servicemonitor.yaml
 - selfsigned-issuer.yaml
 - easyshop-certificate.yaml

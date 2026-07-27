@@ -48,3 +48,13 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "admin_cidr" {
+  description = "CIDR blocks allowed to reach the public EKS API endpoint"
+  type        = list(string)
+}
+
+variable "kms_key_arn" {
+  description = "ARN of the KMS key used for EKS secrets envelope encryption"
+  type        = string
+}

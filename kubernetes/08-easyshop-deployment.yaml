@@ -13,17 +13,30 @@ spec:
       labels:
         app: easyshop
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
       containers:
         - name: easyshop
           image: iemafzal/easyshop-app:9
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: next-cache
+              mountPath: /app/.next/cache
+            - name: tmp
+              mountPath: /tmp
           envFrom:
             - configMapRef:
                 name: easyshop-config
-            - secretRef:
-                name: easyshop-secrets
           env:
             - name: NEXTAUTH_URL
               valueFrom:
@@ -40,6 +53,10 @@ spec:
                 secretKeyRef:
                   name: easyshop-secrets
                   key: JWT_SECRET
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318"
+            - name: OTEL_SERVICE_NAME
+              value: "easyshop"
           resources:
             requests:
               memory: "256Mi"
@@ -65,3 +82,8 @@ spec:
               port: 3000
             initialDelaySeconds: 25
             periodSeconds: 20
+      volumes:
+        - name: next-cache
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

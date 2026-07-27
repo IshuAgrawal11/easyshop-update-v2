@@ -1,0 +1,54 @@
+{
+  "id": null,
+  "uid": "easyshop-traces",
+  "title": "EasyShop Traces",
+  "description": "Browse recent traces and look up a specific trace by ID via Jaeger, without leaving Grafana.",
+  "tags": ["easyshop", "jaeger", "traces"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "traceID",
+        "type": "textbox",
+        "label": "Trace ID (paste one from the panel below)",
+        "current": { "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "traces",
+      "title": "Recent Traces (service: easyshop)",
+      "description": "Click a trace to expand its full span waterfall inline.",
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "jaeger", "uid": "jaeger" },
+      "targets": [
+        {
+          "queryType": "search",
+          "service": "easyshop",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "traces",
+      "title": "Look up Trace by ID",
+      "description": "Set the traceID dashboard variable above to a specific trace ID to jump straight to it.",
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 14 },
+      "datasource": { "type": "jaeger", "uid": "jaeger" },
+      "targets": [
+        {
+          "queryType": "traceID",
+          "query": "$traceID",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

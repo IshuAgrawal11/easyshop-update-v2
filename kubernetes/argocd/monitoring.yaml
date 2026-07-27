@@ -4,15 +4,18 @@ metadata:
   name: argocd-monitoring
   namespace: argocd
 spec:
-  project: default
+  project: easyshop
   source:
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
     targetRevision: 45.27.2
     helm:
       values: |
+        # No adminPassword set here - the chart auto-generates one, stored in
+        # a Secret. Retrieve it with:
+        #   kubectl -n monitoring get secret <release>-grafana \
+        #     -o jsonpath='{.data.admin-password}' | base64 -d
         grafana:
-          adminPassword: EasyShopAdmin123
           ingress:
             enabled: true
             ingressClassName: nginx
@@ -27,6 +30,22 @@ spec:
               - secretName: grafana-tls
                 hosts:
                   - grafana.letsdeployit.com
+          additionalDataSources:
+            # Explicit, stable uids matching the local docker-compose setup,
+            # so the same dashboard JSON (datasource uid: loki/jaeger) works
+            # in both environments.
+            - name: Loki
+              uid: loki
+              type: loki
+              access: proxy
+              url: http://loki.observability.svc.cluster.local:3100
+              isDefault: false
+            - name: Jaeger
+              uid: jaeger
+              type: jaeger
+              access: proxy
+              url: http://jaeger.observability.svc.cluster.local:16686
+              isDefault: false
           dashboardProviders:
             dashboardproviders.yaml:
               apiVersion: 1
@@ -39,11 +58,36 @@ spec:
                 editable: true
                 options:
                   path: /var/lib/grafana/dashboards/argocd
+              - name: 'easyshop'
+                orgId: 1
+                folder: 'EasyShop'
+                type: file
+                disableDeletion: false
+                editable: true
+                options:
+                  path: /var/lib/grafana/dashboards/easyshop
           dashboards:
             argocd:
               argocd-dashboard:
                 gnetId: 14584
                 revision: 1
+                datasource: Prometheus
+            easyshop:
+              # MongoDB Overview (gnetId 2583) intentionally NOT used here -
+              # verified against live data that it targets an older exporter's
+              # metric names (mongodb_op_counters_total etc.), which don't
+              # exist on this project's percona/mongodb_exporter version (it
+              # exposes mongodb_ss_* server-status metrics instead). A
+              # hand-built, verified-compatible dashboard is provisioned
+              # instead via mongodb-dashboard.yaml (ConfigMap, same pattern as
+              # golden-signals-dashboard.yaml).
+              redis-overview:
+                gnetId: 763
+                revision: 4
+                datasource: Prometheus
+              node-exporter-full:
+                gnetId: 1860
+                revision: 45
                 datasource: Prometheus
         prometheus:
           ingress:

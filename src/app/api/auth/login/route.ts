@@ -34,24 +34,33 @@ export async function POST(request: NextRequest) {
     // Get the host from the request for dynamic cookie domain
     const host = request.headers.get('host') || '';
     const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1');
-    
-    // Update cookie settings for Kubernetes compatibility
+    // Derive from the actual request protocol, not NODE_ENV - browsers drop
+    // Secure cookies over plain HTTP regardless of environment, and this app
+    // is also deployed over plain HTTP directly to an EC2 IP (see NEXTAUTH_URL
+    // comments), so `secure: NODE_ENV === 'production'` would silently break
+    // login there since it forces Secure even without HTTPS.
+    const isHttps =
+      request.nextUrl.protocol === 'https:' ||
+      request.headers.get('x-forwarded-proto') === 'https';
+
+    // Both cookies are httpOnly - the token is never read via client-side JS
+    // (document.cookie); the browser sends cookies automatically on
+    // same-origin requests and the server reads them directly.
     response.cookies.set({
       name: 'auth-token',
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps,
       sameSite: isLocalhost ? 'lax' : 'none',
       path: '/',
       maxAge: 60 * 60 * 24 // 1 day
     });
 
-    // Also set a non-httpOnly cookie for client-side access
     response.cookies.set({
       name: 'token',
       value: token,
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      secure: isHttps,
       sameSite: isLocalhost ? 'lax' : 'none',
       path: '/',
       maxAge: 60 * 60 * 24 // 1 day

@@ -13,18 +13,23 @@ module "vpc" {
   single_nat_gateway = true
   enable_vpn_gateway = false
 
+  enable_flow_log                      = true
+  create_flow_log_cloudwatch_log_group = true
+  create_flow_log_cloudwatch_iam_role  = true
+  flow_log_max_aggregation_interval    = 600
+
   # Enable auto-assign public IP for public subnets
   map_public_ip_on_launch = true
 
   # Add explicit route table configuration
   private_route_table_tags = {
     "kubernetes.io/cluster/${var.vpc_name}" = "shared"
-    "kubernetes.io/role/internal-elb"     = 1
+    "kubernetes.io/role/internal-elb"       = 1
   }
 
   public_route_table_tags = {
     "kubernetes.io/cluster/${var.vpc_name}" = "shared"
-    "kubernetes.io/role/elb"              = 1
+    "kubernetes.io/role/elb"                = 1
   }
 
   tags = var.tags

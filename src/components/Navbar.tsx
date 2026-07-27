@@ -123,7 +123,7 @@ const Navbar = () => {
                         )}
                       </Link>
                       {link.subLinks && (
-                        <ul className="invisible scale-95 translate-y-2 opacity-0 absolute top-[130%] right-0 w-[160px] border bg-card rounded-lg transition-all duration-150 shadow-lg p-0.5 group-hover:visible group-hover:scale-100 group-hover:translate-y-0 group-hover:opacity-100">
+                        <ul className="invisible scale-95 translate-y-2 opacity-0 absolute top-full pt-3 right-0 w-[160px] border bg-card rounded-lg transition-all duration-150 shadow-lg p-0.5 group-hover:visible group-hover:scale-100 group-hover:translate-y-0 group-hover:opacity-100">
                           {link.subLinks.map((link) => (
                             <li key={link.url}>
                               <Link

@@ -133,8 +133,9 @@ const MobileMenu = ({ isOpen, setIsOpen }: MobileMenuProps) => {
                   <Link
                     className="flex justify-between items-center w-full px-4 py-2 transition-colors hover:text-primary hover:bg-accent"
                     href={link.url}
-                    onClick={() => {
+                    onClick={(e) => {
                       if (link.subLinks) {
+                        e.preventDefault();
                         setOpenDrop(!openDrop);
                       } else {
                         setIsOpen(false);

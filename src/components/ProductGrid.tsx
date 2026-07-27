@@ -31,7 +31,7 @@ const ProductGrid = async ({ params, searchParams }: CategoryPageProps) => {
 
     const res = await fetchData.get('/products', queryParams);
     const products = (res.data?.products || []) as AllProduct[];
-    const totalCount = res.data?.total || 0;
+    const totalCount = res.data?.pagination?.total || 0;
     const settings = layoutSettings?.[shop] || { productCardVariants: 'style-1' };
 
     if (products.length === 0) {

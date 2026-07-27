@@ -1,6 +1,6 @@
 services:
   mongodb:
-    image: mongo:latest
+    image: mongo:8
     container_name: easyshop-mongodb
     ports:
       - "27017:27017"
@@ -47,36 +47,175 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - MONGODB_URI=mongodb://mongodb:27017/easyshop
-        - REDIS_URI=redis://redis:6379
-        - NEXTAUTH_URL=http://13.50.235.247
-        - NEXT_PUBLIC_API_URL=http://13.50.235.247/api
-        - NEXTAUTH_SECRET=HmaFjYZ2jbUK7Ef+wZrBiJei4ZNGBAJ5IdiOGAyQegw=
-        - JWT_SECRET=e5e425764a34a2117ec2028bd53d6f1388e7b90aeae9fa7735f2469ea3a6cc8c
-        - NODE_ENV=production
     environment:
       - MONGODB_URI=mongodb://mongodb:27017/easyshop
       - REDIS_URI=redis://redis:6379
-      - NEXTAUTH_URL=http://13.50.235.247
-      - NEXT_PUBLIC_API_URL=http://13.50.235.247/api
-      - NEXTAUTH_SECRET=HmaFjYZ2jbUK7Ef+wZrBiJei4ZNGBAJ5IdiOGAyQegw=
-      - JWT_SECRET=e5e425764a34a2117ec2028bd53d6f1388e7b90aeae9fa7735f2469ea3a6cc8c
-      - NODE_ENV=production
+      # This is the local-dev stack - Kubernetes/ArgoCD is the production
+      # deployment target (see kubernetes/argocd/). Server-side data fetches
+      # (SSR) use NEXT_PUBLIC_API_URL directly, so pointing it at a real
+      # external host here would make every server-rendered page's data
+      # fetch try to reach that host instead of this container.
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXT_PUBLIC_API_URL=http://localhost:3000/api
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_SERVICE_NAME=easyshop
     env_file:
       - .env.local
     container_name: easyshop
     ports:
       - "3000:3000"
-    # Remove the duplicate env_file declaration below
     depends_on:
       migration:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - easyshop-network
     restart: unless-stopped
+
+  # --- Observability stack (local dev mirror of the K8s/ArgoCD setup) ---
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.156.0
+    container_name: easyshop-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    depends_on:
+      jaeger:
+        condition: service_started
+    networks:
+      - easyshop-network
+
+  jaeger:
+    image: jaegertracing/jaeger:2.19.0
+    container_name: easyshop-jaeger
+    # The image runs as uid 10001 by default, which can't write to a fresh
+    # root-owned named volume. Kubernetes handles this via the pod's fsGroup;
+    # docker-compose has no equivalent, so run as root here (local dev only).
+    user: "0:0"
+    command: ["--config", "/jaeger-config.yaml"]
+    volumes:
+      - ./observability/jaeger-config.yaml:/jaeger-config.yaml:ro
+      - jaeger_badger_data:/badger
+    ports:
+      - "16686:16686" # Jaeger UI
+    networks:
+      - easyshop-network
+
+  loki:
+    image: grafana/loki:3.6.8
+    container_name: easyshop-loki
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./observability/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - easyshop-network
+
+  promtail:
+    image: grafana/promtail:3.4.2
+    container_name: easyshop-promtail
+    command: ["-config.file=/etc/promtail/config.yaml"]
+    volumes:
+      - ./observability/promtail-config.yaml:/etc/promtail/config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      loki:
+        condition: service_started
+    networks:
+      - easyshop-network
+
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.51.0
+    container_name: easyshop-mongodb-exporter
+    command: ["--collector.diagnosticdata"]
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - easyshop-network
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.75.0
+    container_name: easyshop-redis-exporter
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - easyshop-network
+
+  # Container-level infrastructure metrics (CPU/memory/network per container).
+  cadvisor:
+    # v0.49.1 doesn't understand modern Docker's containerd-snapshotter
+    # storage layout (see google/cadvisor#3643, #3860) and silently reports
+    # zero per-container metrics on Docker Engine 29.x+ - v0.55.1 fixes this.
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    container_name: easyshop-cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - easyshop-network
+
+  # Host-level infrastructure metrics (CPU/memory/disk/network for the machine
+  # docker is running on).
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: easyshop-node-exporter
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - easyshop-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: easyshop-prometheus
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - otel-collector
+      - mongodb-exporter
+      - redis-exporter
+      - cadvisor
+      - node-exporter
+    networks:
+      - easyshop-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: easyshop-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+      - jaeger
+    networks:
+      - easyshop-network
 
 networks:
   easyshop-network:
@@ -87,3 +226,11 @@ volumes:
     name: mongodb_data
   redis_data:
     name: redis_data
+  jaeger_badger_data:
+    name: jaeger_badger_data
+  loki_data:
+    name: loki_data
+  prometheus_data:
+    name: prometheus_data
+  grafana_data:
+    name: grafana_data

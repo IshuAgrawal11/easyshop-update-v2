@@ -8,12 +8,13 @@ import dbConnect from '@/lib/db';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { productId: string } }
+  { params }: { params: Promise<{ productId: string }> }
 ) {
   try {
     const auth = await requireAuth(request);
+    const { productId } = await params;
     await dbConnect();
-    
+
     const body = await request.json();
     const { quantity } = body;
 
@@ -45,7 +46,7 @@ export async function PUT(
     }
 
     const itemIndex = cartData.items.findIndex(
-      item => item.productId === params.productId
+      item => item.productId === productId
     );
 
     if (itemIndex === -1) {
@@ -89,12 +90,13 @@ export async function PUT(
 // Remove item from cart
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { productId: string } }
+  { params }: { params: Promise<{ productId: string }> }
 ) {
   try {
     const auth = await requireAuth(request);
+    const { productId } = await params;
     await dbConnect();
-    
+
     const cart = await Cart.findOne({ user: auth.userId });
     if (!cart) {
       return NextResponse.json(
@@ -102,9 +104,9 @@ export async function DELETE(
         { status: 404 }
       );
     }
-    
+
     cart.items = cart.items.filter(
-      (item: { product: { toString: () => string } }) => item.product.toString() !== params.productId
+      (item: { product: { toString: () => string } }) => item.product.toString() !== productId
     );
     
     await cart.save();

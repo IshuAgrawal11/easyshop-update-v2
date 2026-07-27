@@ -3,10 +3,19 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "19.15.1"
 
-  cluster_name                   = var.cluster_name
-  cluster_version                = var.cluster_version
-  cluster_endpoint_public_access = true
-  cluster_endpoint_private_access = true
+  cluster_name                         = var.cluster_name
+  cluster_version                      = var.cluster_version
+  cluster_endpoint_public_access       = true
+  cluster_endpoint_private_access      = true
+  cluster_endpoint_public_access_cidrs = var.admin_cidr
+
+  cluster_enabled_log_types = ["api", "audit", "authenticator"]
+
+  cluster_encryption_config = [{
+    provider_key_arn = var.kms_key_arn
+    resources        = ["secrets"]
+  }]
+
   cluster_addons = {
     coredns = {
       most_recent = false
@@ -38,25 +47,37 @@ module "eks" {
     disk_type      = "gp3"
     iops           = 3000
     throughput     = 125
+
+    block_device_mappings = {
+      xvda = {
+        device_name = "/dev/xvda"
+        ebs = {
+          volume_size = 50
+          volume_type = "gp3"
+          iops        = 3000
+          throughput  = 125
+          encrypted   = true
+        }
+      }
+    }
   }
 
 
   eks_managed_node_groups = {
     easyshop-node-group = {
-      min_size     = 2
-      max_size     = 3
-      desired_size = 2
+      min_size       = 2
+      max_size       = 3
+      desired_size   = 2
       instance_types = ["t3.medium", "t2.medium"]
       capacity_type  = "SPOT"
       iam_role_additional_policies = {
-        AmazonEBSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+        AmazonEBSCSIDriverPolicy     = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
         AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
       }
-      tags = {
-        Project     = "EasyShop"
+      tags = merge(var.tags, {
         Environment = var.environment
         NodeGroup   = "easyshop-workers"
-      }
+      })
     }
   }
 
@@ -69,7 +90,7 @@ module "eks" {
       type                     = "ingress"
       source_security_group_id = var.bastion_security_group_id
     }
-    
+
     ingress_nodes_443 = {
       description              = "Nodes to cluster API"
       protocol                 = "tcp"
@@ -78,15 +99,10 @@ module "eks" {
       type                     = "ingress"
       source_security_group_id = module.eks.node_security_group_id
     }
-    
-    ingress_load_balancer_443 = {
-      description = "Load balancer to cluster API"
-      protocol    = "tcp"
-      from_port   = 443
-      to_port     = 443
-      type        = "ingress"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
+
+    # Note: no world-open (0.0.0.0/0) rule to the cluster API here - public
+    # access to the API endpoint is restricted via cluster_endpoint_public_access_cidrs
+    # above instead of a separate security-group rule.
   }
 
   node_security_group_additional_rules = {
@@ -98,7 +114,7 @@ module "eks" {
       type                     = "ingress"
       source_security_group_id = var.bastion_security_group_id
     }
-    
+
     ingress_bastion_kubelet = {
       description              = "Bastion to nodes kubelet API"
       protocol                 = "tcp"
@@ -107,7 +123,7 @@ module "eks" {
       type                     = "ingress"
       source_security_group_id = var.bastion_security_group_id
     }
-    
+
     ingress_cluster_kubelet = {
       description              = "Cluster to nodes kubelet API"
       protocol                 = "tcp"
@@ -116,7 +132,7 @@ module "eks" {
       type                     = "ingress"
       source_security_group_id = module.eks.cluster_security_group_id
     }
-    
+
     ingress_self_all = {
       description = "Node to node all ports/protocols"
       protocol    = "-1"
@@ -125,14 +141,14 @@ module "eks" {
       type        = "ingress"
       self        = true
     }
-    
+
     egress_all = {
-      description      = "Node all egress"
-      protocol         = "-1"
-      from_port        = 0
-      to_port          = 0
-      type             = "egress"
-      cidr_blocks      = ["0.0.0.0/0"]
+      description = "Node all egress"
+      protocol    = "-1"
+      from_port   = 0
+      to_port     = 0
+      type        = "egress"
+      cidr_blocks = ["0.0.0.0/0"]
     }
   }
 

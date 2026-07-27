@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
-import React, { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import React, { useState, useCallback } from "react";
 import { IoIosArrowDown } from "react-icons/io";
 import Image from "next/image";
 import {
@@ -21,7 +21,6 @@ type ShopOption = {
 
 const ShopSelect = () => {
   const router = useRouter();
-  const pathname = usePathname();
   const [selectedShop, setSelectedShop] = useState<ShopOption>({
     title: "Select Shop",
     icon: "",
@@ -34,12 +33,6 @@ const ShopSelect = () => {
       router.push(`/shops/${shop}`);
     }
   }, [router]);
-
-  useEffect(() => {
-    if (selectedShop) {
-      handleSelectShop(selectedShop.title);
-    }
-  }, [selectedShop, handleSelectShop]);
 
   return (
     <DropdownMenu modal={false}>

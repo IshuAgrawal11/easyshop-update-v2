@@ -24,3 +24,7 @@ README.md
 *.md
 .vscode
 .idea
+# Out-of-scope infra (not used by either image build)
+terraform
+kubernetes
+Jenkinsfile

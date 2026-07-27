@@ -18,17 +18,12 @@ output "bastion_key_name" {
   value       = aws_key_pair.bastion.key_name
 }
 
-output "bastion_key_path" {
-  description = "Path to the bastion SSH key"
-  value       = "${path.module}/keys/bastion_key.pem"
+output "bastion_private_key_secret_arn" {
+  description = "Secrets Manager ARN holding the bastion SSH private key"
+  value       = aws_secretsmanager_secret.bastion_private_key.arn
 }
 
-output "bastion_private_key_path" {
-  description = "Path to the bastion private key"
-  value       = local_file.bastion_private_key.filename
-}
-
-output "bastion_public_key_path" {
-  description = "Path to the bastion public key"
-  value       = local_file.bastion_public_key.filename
+output "retrieve_key_command" {
+  description = "Command to fetch the bastion SSH private key from Secrets Manager"
+  value       = "aws secretsmanager get-secret-value --secret-id ${aws_secretsmanager_secret.bastion_private_key.name} --query SecretString --output text > bastion_key.pem && chmod 400 bastion_key.pem"
 }

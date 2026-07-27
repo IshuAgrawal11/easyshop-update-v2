@@ -4,7 +4,6 @@ import BooksCategory from "@/components/BooksCategory";
 import FeaturedProducts from "@/components/FeaturedProducts";
 import ShopCategories from "@/components/ShopCategories";
 import HeroSlider from "@/components/heros/HeroSlider";
-import dynamic from "next/dynamic";
 
 const heroImages = [
   {
@@ -51,13 +50,14 @@ const banners = [
   },
 ];
 
-export default function Home({
+export default async function Home({
   searchParams,
 }: {
-  searchParams: {
+  searchParams: Promise<{
     featured: string;
-  };
+  }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   return (
     <main>
       <HeroSlider heroImages={heroImages} />
@@ -65,35 +65,7 @@ export default function Home({
       <ShopCategories />
       <BooksCategory />
       <BekaryCategories />
-      <FeaturedProducts featured={searchParams.featured} />
+      <FeaturedProducts featured={resolvedSearchParams.featured} />
     </main>
   );
 }
-
-// Replace document-based image loading with Next.js Image component
-import Image from 'next/image';
-
-// Example usage in your component:
-<Image
-  src="/heroImages/clothing1.png"
-  alt="Clothing"
-  width={1200}
-  height={600}
-  priority
-/>
-
-// Remove static BooksCategory import
-// import BooksCategory from "@/components/BooksCategory";
-
-// Update dynamic import section
-const DynamicBooksCategory = dynamic(
-  () => import('@/components/BooksCategory'),
-  { 
-    ssr: false,
-    loading: () => <p>Loading...</p>
-  }
-);
-
-// In your main component JSX, replace:
-// <BooksCategory />
-<DynamicBooksCategory />

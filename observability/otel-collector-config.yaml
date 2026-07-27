@@ -31,3 +31,16 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [prometheus]
+  # The collector's own self-observability (spans received/exported, queue
+  # sizes, refused/dropped counts) — separate from the "prometheus" exporter
+  # above, which only carries metrics *forwarded through* the collector.
+  # This is what the community "OpenTelemetry Collector" Grafana dashboard
+  # (grafana.com/dashboards/15983) actually reads from.
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888

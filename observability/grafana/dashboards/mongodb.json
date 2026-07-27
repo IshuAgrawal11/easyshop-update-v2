@@ -22,8 +22,8 @@
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 18, "x": 6, "y": 0 },
       "targets": [
-        { "expr": "mongodb_connections{state=\"current\"}", "legendFormat": "current", "refId": "A" },
-        { "expr": "mongodb_connections{state=\"available\"}", "legendFormat": "available", "refId": "B" }
+        { "expr": "mongodb_ss_connections{conn_type=\"current\"}", "legendFormat": "current", "refId": "A" },
+        { "expr": "mongodb_ss_connections{conn_type=\"available\"}", "legendFormat": "available", "refId": "B" }
       ]
     },
     {
@@ -33,8 +33,8 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
         {
-          "expr": "rate(mongodb_op_counters_total[5m])",
-          "legendFormat": "{{type}}",
+          "expr": "rate(mongodb_ss_opcounters[5m])",
+          "legendFormat": "{{legacy_op_type}}",
           "refId": "A"
         }
       ]
@@ -46,8 +46,8 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "fieldConfig": { "defaults": { "unit": "decmbytes" }, "overrides": [] },
       "targets": [
-        { "expr": "mongodb_memory{type=\"resident\"}", "legendFormat": "resident", "refId": "A" },
-        { "expr": "mongodb_memory{type=\"virtual\"}", "legendFormat": "virtual", "refId": "B" }
+        { "expr": "mongodb_ss_mem_resident", "legendFormat": "resident", "refId": "A" },
+        { "expr": "mongodb_ss_mem_virtual", "legendFormat": "virtual", "refId": "B" }
       ]
     },
     {
@@ -57,8 +57,8 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
         {
-          "expr": "rate(mongodb_mongod_metrics_document_total[5m])",
-          "legendFormat": "{{state}}",
+          "expr": "rate(mongodb_ss_metrics_document[5m])",
+          "legendFormat": "{{doc_op_type}}",
           "refId": "A"
         }
       ]
@@ -70,7 +70,8 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
       "targets": [
-        { "expr": "rate(mongodb_network_bytes_total[5m])", "legendFormat": "{{state}}", "refId": "A" }
+        { "expr": "rate(mongodb_ss_network_bytesIn[5m])", "legendFormat": "in", "refId": "A" },
+        { "expr": "rate(mongodb_ss_network_bytesOut[5m])", "legendFormat": "out", "refId": "B" }
       ]
     }
   ]

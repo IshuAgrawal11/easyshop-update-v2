@@ -21,6 +21,18 @@ scrape_configs:
     static_configs:
       - targets: ["otel-collector:8889"]
 
+  # The collector's own self-observability metrics (spans received/exported,
+  # queue sizes) — a distinct endpoint from the one above, which only carries
+  # metrics forwarded *through* the collector's OTLP pipeline. Feeds the
+  # community "OpenTelemetry Collector" Grafana dashboard.
+  - job_name: otel-collector-self
+    static_configs:
+      - targets: ["otel-collector:8888"]
+
   - job_name: mongodb-exporter
     static_configs:
       - targets: ["mongodb-exporter:9216"]
+
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["node-exporter:9100"]

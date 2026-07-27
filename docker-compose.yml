@@ -88,16 +88,36 @@ services:
     container_name: easyshop-mongodb-exporter
     # Uses its own least-privilege clusterMonitor-role user (created by
     # mongo-init/init-mongo.sh), not the app's readWrite credentials — and
-    # not --collect-all, which pulls in collectors (currentOp, $indexStats)
-    # that need broader access than a monitoring-only role has, and which
-    # crash the exporter outright on an auth error rather than degrading.
+    # not --collect-all, which pulls in collectors (currentOp, $indexStats,
+    # dbstats, collstats, topmetrics) that need per-database read access
+    # beyond clusterMonitor, and crash the exporter outright on an auth
+    # error rather than degrading gracefully.
+    #
+    # --collector.diagnosticdata is the one extra collector that's both
+    # satisfied entirely by clusterMonitor (it just wraps the
+    # getDiagnosticData/serverStatus command) and covers everything our
+    # dashboard needs: connections, memory, opcounters, network bytes,
+    # document ops. Without it, only the bare "general" collector runs,
+    # which exposes nothing but mongodb_up.
     command:
       - "--mongodb.uri=mongodb://$MONGO_EXPORTER_USERNAME:$MONGO_EXPORTER_PASSWORD@easyshop-mongodb:27017/admin?authSource=admin"
+      - "--collector.diagnosticdata"
     env_file:
       - .env
     depends_on:
       mongodb:
         condition: service_healthy
+    networks:
+      - easyshop-network
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: easyshop-node-exporter
+    command:
+      - "--path.rootfs=/host"
+    volumes:
+      - /:/host:ro,rslave
     networks:
       - easyshop-network
     restart: unless-stopped

@@ -1,0 +1,48 @@
+{
+  "title": "EasyShop — Tracing",
+  "uid": "easyshop-tracing",
+  "tags": ["easyshop", "tracing", "jaeger"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Recent traces — easyshop",
+      "type": "table",
+      "datasource": { "type": "jaeger", "uid": "jaeger" },
+      "description": "Click a Trace ID to open the full waterfall view in Explore.",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "jaeger", "uid": "jaeger" },
+          "queryType": "search",
+          "service": "easyshop",
+          "limit": 50
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Error traces only (tag error=true)",
+      "type": "table",
+      "datasource": { "type": "jaeger", "uid": "jaeger" },
+      "description": "Empty is good news — it means no traced request has been flagged as an error. Populated automatically if span.recordException() fires (e.g. the manual order.create span) or an auto-instrumented HTTP/Mongo call fails.",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "jaeger", "uid": "jaeger" },
+          "queryType": "search",
+          "service": "easyshop",
+          "tags": "{\"error\":\"true\"}",
+          "limit": 50
+        }
+      ]
+    }
+  ]
+}

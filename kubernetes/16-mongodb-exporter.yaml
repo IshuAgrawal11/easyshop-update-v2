@@ -19,10 +19,16 @@ spec:
       containers:
         - name: mongodb-exporter
           image: percona/mongodb_exporter:0.44
-          # No --collect-all: it pulls in collectors (currentOp, $indexStats)
-          # that need broader access than the exporter's clusterMonitor-role
-          # user has, and crash the exporter outright on an auth error
-          # rather than degrading gracefully.
+          # No --collect-all: it pulls in collectors (currentOp, $indexStats,
+          # dbstats, collstats, topmetrics) that need broader access than the
+          # exporter's clusterMonitor-role user has, and crash the exporter
+          # outright on an auth error rather than degrading gracefully.
+          # --collector.diagnosticdata IS enabled: it's satisfied entirely by
+          # clusterMonitor and covers connections/memory/opcounters/network,
+          # which is what the bundled Grafana dashboard needs. Without it,
+          # only the bare "general" collector runs (mongodb_up and nothing else).
+          args:
+            - "--collector.diagnosticdata"
           env:
             - name: MONGODB_URI
               valueFrom:

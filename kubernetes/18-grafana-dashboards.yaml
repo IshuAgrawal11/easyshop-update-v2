@@ -1,6 +1,7 @@
 # Auto-imported into Grafana by the kube-prometheus-stack dashboard
 # sidecar (terraform/observability.tf sets sidecar.dashboards.enabled=true,
 # searchNamespace=ALL) — no manual Grafana UI import step needed.
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -170,8 +171,8 @@ data:
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 18, "x": 6, "y": 0 },
           "targets": [
-            { "expr": "mongodb_connections{state=\"current\"}", "legendFormat": "current", "refId": "A" },
-            { "expr": "mongodb_connections{state=\"available\"}", "legendFormat": "available", "refId": "B" }
+            { "expr": "mongodb_ss_connections{conn_type=\"current\"}", "legendFormat": "current", "refId": "A" },
+            { "expr": "mongodb_ss_connections{conn_type=\"available\"}", "legendFormat": "available", "refId": "B" }
           ]
         },
         {
@@ -181,8 +182,8 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
           "targets": [
             {
-              "expr": "rate(mongodb_op_counters_total[5m])",
-              "legendFormat": "{{type}}",
+              "expr": "rate(mongodb_ss_opcounters[5m])",
+              "legendFormat": "{{legacy_op_type}}",
               "refId": "A"
             }
           ]
@@ -194,8 +195,8 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
           "fieldConfig": { "defaults": { "unit": "decmbytes" }, "overrides": [] },
           "targets": [
-            { "expr": "mongodb_memory{type=\"resident\"}", "legendFormat": "resident", "refId": "A" },
-            { "expr": "mongodb_memory{type=\"virtual\"}", "legendFormat": "virtual", "refId": "B" }
+            { "expr": "mongodb_ss_mem_resident", "legendFormat": "resident", "refId": "A" },
+            { "expr": "mongodb_ss_mem_virtual", "legendFormat": "virtual", "refId": "B" }
           ]
         },
         {
@@ -205,8 +206,8 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
           "targets": [
             {
-              "expr": "rate(mongodb_mongod_metrics_document_total[5m])",
-              "legendFormat": "{{state}}",
+              "expr": "rate(mongodb_ss_metrics_document[5m])",
+              "legendFormat": "{{doc_op_type}}",
               "refId": "A"
             }
           ]
@@ -218,7 +219,184 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
           "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
           "targets": [
-            { "expr": "rate(mongodb_network_bytes_total[5m])", "legendFormat": "{{state}}", "refId": "A" }
+            { "expr": "rate(mongodb_ss_network_bytesIn[5m])", "legendFormat": "in", "refId": "A" },
+            { "expr": "rate(mongodb_ss_network_bytesOut[5m])", "legendFormat": "out", "refId": "B" }
+          ]
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: easyshop-logs-dashboard
+  namespace: easyshop
+  labels:
+    grafana_dashboard: "1"
+data:
+  easyshop-logs.json: |
+    {
+      "title": "EasyShop — Logs",
+      "uid": "easyshop-logs",
+      "tags": ["easyshop", "logs", "loki"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "10s",
+      "time": { "from": "now-1h", "to": "now" },
+      "templating": { "list": [] },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Log volume by container",
+          "type": "timeseries",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "sum by (container) (count_over_time({container=~\".+\"}[1m]))",
+              "legendFormat": "{{container}}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Application logs (parsed JSON)",
+          "type": "logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 8 },
+          "options": {
+            "showTime": true,
+            "showLabels": false,
+            "wrapLogMessages": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{container=\"easyshop\"} | json"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Warnings & errors (app only)",
+          "type": "logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 8 },
+          "options": {
+            "showTime": true,
+            "showLabels": false,
+            "wrapLogMessages": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{container=\"easyshop\"} | json | level >= 40"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "MongoDB logs",
+          "type": "logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 18 },
+          "options": {
+            "showTime": true,
+            "showLabels": false,
+            "wrapLogMessages": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{container=\"easyshop-mongodb\"}"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "All containers (raw tail)",
+          "type": "logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 18 },
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessages": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{container=~\".+\"}"
+            }
+          ]
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: easyshop-tracing-dashboard
+  namespace: easyshop
+  labels:
+    grafana_dashboard: "1"
+data:
+  easyshop-tracing.json: |
+    {
+      "title": "EasyShop — Tracing",
+      "uid": "easyshop-tracing",
+      "tags": ["easyshop", "tracing", "jaeger"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "templating": { "list": [] },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Recent traces — easyshop",
+          "type": "table",
+          "datasource": { "type": "jaeger", "uid": "jaeger" },
+          "description": "Click a Trace ID to open the full waterfall view in Explore.",
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "jaeger", "uid": "jaeger" },
+              "queryType": "search",
+              "service": "easyshop",
+              "limit": 50
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Error traces only (tag error=true)",
+          "type": "table",
+          "datasource": { "type": "jaeger", "uid": "jaeger" },
+          "description": "Empty is good news — it means no traced request has been flagged as an error. Populated automatically if span.recordException() fires (e.g. the manual order.create span) or an auto-instrumented HTTP/Mongo call fails.",
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 12 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "jaeger", "uid": "jaeger" },
+              "queryType": "search",
+              "service": "easyshop",
+              "tags": "{\"error\":\"true\"}",
+              "limit": 50
+            }
           ]
         }
       ]
